@@ -1007,11 +1007,12 @@ class PanObject(object):
         if self.parent is not None:
             return self.parent.devicegroup()
 
-    def find(self, name, class_type=None, recursive=False):
+    def find(self, name, key='uid', class_type=None, recursive=False):
         """Find an object in the configuration tree by name
 
         Args:
             name (str): Name of the object to find
+            key (str): Key name of the object to find
             class_type: Class to look for
             recursive (bool): Find recursively (Default: False)
 
@@ -1021,15 +1022,15 @@ class PanObject(object):
         """
         if class_type is None:
             # Find the matching object or return None
-            result = next((child for child in self.children if child.uid == name), None)
+            result = next((child for child in self.children if getattr(child, key) == name), None)
         else:
             # Find the matching object or return None
             result = next((child for child in self.children if
-                           child.uid == name and isinstance(child, class_type)), None)
+                           getattr(child, key) == name and isinstance(child, class_type)), None)
         # Search recursively in children
         if result is None and recursive:
             for child in self.children:
-                result = child.find(name, class_type, recursive)
+                result = child.find(name, key, class_type, recursive)
                 if result is not None:
                     break
         return result
@@ -1096,7 +1097,7 @@ class PanObject(object):
         else:
             return [self.add(class_type(*args, **kwargs))]
 
-    def find_index(self, name=None, class_type=None):
+    def find_index(self, name=None, key='uid', class_type=None):
         """Finds the first index of the given name and class type.
 
         If name is None, just find the first instance of class_type.
@@ -1105,6 +1106,7 @@ class PanObject(object):
 
         Args:
             name (str): Name of the child node
+            key (str): Key name of the child node
             class_type (class): Restrict the find to children of this type
 
         Returns:
@@ -1115,7 +1117,7 @@ class PanObject(object):
             class_type = type(self)
 
         for num, child in enumerate(self.children):
-            if ((name is None or child.uid == name)
+            if ((name is None or getattr(child, key) == name)
                     and type(child) == class_type):
                 return num
 
