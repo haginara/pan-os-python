@@ -925,6 +925,10 @@ class PanObject(object):
                 import pandevice.panorama
             elif module_name == 'policies':
                 import pandevice.policies
+            elif module_name == 'globalprotect':
+                import pandevice.globalprotect
+            else:
+                raise TypeError(f"No child_type *{module_name}* available")
             child = getattr(getattr(pandevice, module_name), class_name)()
 
             # Versioned objects need a PanDevice to get the version from, so
