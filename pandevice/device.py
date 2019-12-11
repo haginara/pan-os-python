@@ -368,6 +368,49 @@ class PasswordProfile(VersionedPanObject):
         self._params = tuple(params)
 
 
+class AuthenticationProfile(VersionedPanObject):
+    """Authentication profile object
+
+    Args:
+    """
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+    CHILDTYPES = (
+    )
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value='/authentication-profile')
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath(
+            'allow_list', vartype='member', default=['all'],
+            path='allow-list'))
+        """
+        params.append(VersionedParamPath(
+            'lockout', vartype='',
+            path='lockout'))
+        params.append(VersionedParamPath(
+            'method', vartype='',
+            path='method'))
+        params.append(VersionedParamPath(
+            'multi_factor_auth', vartype='',
+            path='multi-factor-auth'))
+        params.append(VersionedParamPath(
+            'single_sign_on', vartype='',
+            path='single-sign-on'))
+        params.append(VersionedParamPath(
+            'user_domain', vartype='',
+            path='user-domain'))
+        params.append(VersionedParamPath(
+            'username_modifier', vartype='',
+            path='username-modifier'))
+        """
+
+        self._params = tuple(params)
+
 class Administrator(VersionedPanObject):
     """Administrator object
 
