@@ -54,9 +54,12 @@ class GlobalProtectGateway(VersionedPanObject):
         params.append(VersionedParamPath(
             'remote_user_tunnel', path='remote-user-tunnel')
         )
-        #params.append(VersionedParamPath(
-        #    'remote_user_tunnel_configs', path='remote-user-tunnel-configs', vartype='entry')
-        #)
+        params.append(VersionedParamPath(
+            'roles', vartype='entry', path='roles')
+        )
+        params.append(VersionedParamPath(
+            'remote_user_tunnel_configs', path='remote-user-tunnel-configs', vartype='entry')
+        )
         not_implemented_items = [
             ('certificate_profile', 'certificate-profile'),
             ('hip_notification', 'hip-notification'),
@@ -136,10 +139,22 @@ class RemoteUserTunnelConfig(VersionedPanObject):
         # params
         params = []
         params.append(VersionedParamPath(
-            'authentication_override', path='authentication-override')
+            'accept_cookie_in_days', vartype='int', path='authentication-override/accept-cookie/cookie-lifetime/lifetime-in-days')
         )
         params.append(VersionedParamPath(
-            'split_tunneling_access-route', vartype='member', path='split-tunneling/access-route')
+            'accept_cookie_in_hours', vartype='int', path='authentication-override/accept-cookie/cookie-lifetime/lifetime-in-hours')
+        )
+        params.append(VersionedParamPath(
+            'accept_cookie_in_minutes', vartype='int', path='authentication-override/accept-cookie/cookie-lifetime/lifetime-in-minutes')
+        )
+        params.append(VersionedParamPath(
+            'cookie_encrypt_decrypt_cert', path='authentication-override/cookie-encrypt-decrypt-cert')
+        )
+        params.append(VersionedParamPath(
+            'generate_cookie', vartype='yesno', path='authentication-override/generate-cookie')
+        )
+        params.append(VersionedParamPath(
+            'split_tunneling_access_route', vartype='member', path='split-tunneling/access-route')
         )
         params.append(VersionedParamPath(
             'source_user', vartype='member', path='source-user')
