@@ -157,6 +157,21 @@ class RemoteUserTunnelConfig(VersionedPanObject):
             'split_tunneling_access_route', vartype='member', path='split-tunneling/access-route')
         )
         params.append(VersionedParamPath(
+            'split_tunneling_exclude_access_route', vartype='member', path='split-tunneling/exclude-access-route')
+        )
+        params.append(VersionedParamPath(
+            'split_tunneling_exclude_applications', vartype='member', path='split-tunneling/exclude-applications')
+        )
+        params.append(VersionedParamPath(
+            'split_tunneling_exclude_domains', vartype='member', path='split-tunneling/exclude-domains')
+        )
+        params.append(VersionedParamPath(
+            'split_tunneling_include_applications', vartype='member', path='split-tunneling/include-applications')
+        )
+        params.append(VersionedParamPath(
+            'split_tunneling_include_domains', vartype='entry', path='split-tunneling/include-domains')
+        )
+        params.append(VersionedParamPath(
             'source_user', vartype='member', path='source-user')
         )
         params.append(VersionedParamPath(
