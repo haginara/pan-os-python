@@ -223,7 +223,7 @@ class GlobalProtectPortal(VersionedPanObject):
             'local_ip', path='portal-config/local-address/ip/{local_ip_addrses_family}')
         )
         params.append(VersionedParamPath(
-           'client_config_agent_user_override_key', path='client-config/agent-user-override-key')
+            'client_config_agent_user_override_key', path='client-config/agent-user-override-key')
         )
         params.append(VersionedParamPath(
             'satellite_config_client_certificate_local', path='satellite-config/client-certificate/local')

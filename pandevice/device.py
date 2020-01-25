@@ -388,25 +388,28 @@ class AuthenticationProfile(VersionedPanObject):
         params.append(VersionedParamPath(
             'allow_list', vartype='member', default=['all'],
             path='allow-list'))
+        params.append(VersionedParamPath(
+            'user_domain', path='user-domain'))
+        params.append(VersionedParamPath(
+            'username_modifier', path='username-modifier'))
+        params.append(VersionedParamPath(
+            'lockout-time', vartype='int',
+            path='lockout/lockout-time'))
+        params.append(VersionedParamPath(
+            'failed-attempts', vartype='int',
+            path='lockout/failed-attempts'))
+        params.append(VersionedParamPath(
+            'method', path='method/{method}',
+            values=['kerberos', 'ldap', 'local-database', 'none', 'radius', 'saml-idp', 'tacplus']))
         """
         params.append(VersionedParamPath(
-            'lockout', vartype='',
-            path='lockout'))
-        params.append(VersionedParamPath(
-            'method', vartype='',
-            path='method'))
+            'ldap_method', path=f"method/{method}", vartype='member'))
         params.append(VersionedParamPath(
             'multi_factor_auth', vartype='',
             path='multi-factor-auth'))
         params.append(VersionedParamPath(
             'single_sign_on', vartype='',
             path='single-sign-on'))
-        params.append(VersionedParamPath(
-            'user_domain', vartype='',
-            path='user-domain'))
-        params.append(VersionedParamPath(
-            'username_modifier', vartype='',
-            path='username-modifier'))
         """
 
         self._params = tuple(params)
