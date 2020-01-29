@@ -403,17 +403,34 @@ class AuthenticationProfile(VersionedPanObject):
             'method', path='method/{method}',
             values=['kerberos', 'ldap', 'local-database', 'none', 'radius', 'saml-idp', 'tacplus']))
         params.append(VersionedParamPath(
-            'ldap_server_profile', path='method/{method}/server-profile',
-            condition={'method': ['ldap']}))
+            'server_profile', path='method/{method}/server-profile',
+            condition={'method': ['ldap', 'kerberos', 'radius', 'saml-idp', 'tacplus']}))
         params.append(VersionedParamPath(
             'ldap_login_attribute', path='method/{method}/login-attribute',
             condition={'method': ['ldap']}))
         params.append(VersionedParamPath(
             'ldap_passwd_exp_days', path='method/{method}/passwd-exp-days',
             condition={'method': ['ldap']}))
-        """
         params.append(VersionedParamPath(
-            'ldap_method', path=f"method/{method}", vartype='member'))
+            'realm', path='method/{method}/realm',
+            condition={'method': ['kerberos']}))
+        params.append(VersionedParamPath(
+            'checkgroup', path='method/{method}/checkgroup',
+            condition={'method': ['radius', 'tacplus']}))
+
+        smal_idp_attrs = [
+            'attribute-name-access-domain',
+            'attribute-name-admin-role',
+            'attribute-name-usergroup',
+            'attribute-name-username',
+            'certificate-profile',
+            'enable-single-logout',
+            'request-signing-certificate',
+        ]
+        for attr in saml_idp_attrs:
+            params.append(VersionedParamPath(
+                attr, path='method/{method}/attr', condition={'method': ['saml-idp']}))
+        """
         params.append(VersionedParamPath(
             'multi_factor_auth', vartype='',
             path='multi-factor-auth'))
