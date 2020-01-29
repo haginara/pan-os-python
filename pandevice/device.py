@@ -402,6 +402,15 @@ class AuthenticationProfile(VersionedPanObject):
         params.append(VersionedParamPath(
             'method', path='method/{method}',
             values=['kerberos', 'ldap', 'local-database', 'none', 'radius', 'saml-idp', 'tacplus']))
+        params.append(VersionedParamPath(
+            'ldap_server_profile', path='method/{method}/server-profile',
+            condition={'method': ['ldap']}))
+        params.append(VersionedParamPath(
+            'ldap_login_attribute', path='method/{method}/login-attribute',
+            condition={'method': ['ldap']}))
+        params.append(VersionedParamPath(
+            'ldap_passwd_exp_days', path='method/{method}/passwd-exp-days',
+            condition={'method': ['ldap']}))
         """
         params.append(VersionedParamPath(
             'ldap_method', path=f"method/{method}", vartype='member'))
