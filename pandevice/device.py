@@ -409,7 +409,7 @@ class AuthenticationProfile(VersionedPanObject):
             'ldap_login_attribute', path='method/{method}/login-attribute',
             condition={'method': ['ldap']}))
         params.append(VersionedParamPath(
-            'ldap_passwd_exp_days', path='method/{method}/passwd-exp-days',
+            'ldap_passwd_exp_days', path='method/{method}/passwd-exp-days', vartype='member',
             condition={'method': ['ldap']}))
         params.append(VersionedParamPath(
             'realm', path='method/{method}/realm',
@@ -418,7 +418,7 @@ class AuthenticationProfile(VersionedPanObject):
             'checkgroup', path='method/{method}/checkgroup',
             condition={'method': ['radius', 'tacplus']}))
 
-        smal_idp_attrs = [
+        saml_idp_attrs = [
             'attribute-name-access-domain',
             'attribute-name-admin-role',
             'attribute-name-usergroup',
@@ -430,6 +430,13 @@ class AuthenticationProfile(VersionedPanObject):
         for attr in saml_idp_attrs:
             params.append(VersionedParamPath(
                 attr, path='method/{method}/attr', condition={'method': ['saml-idp']}))
+
+        params.append(VersionedParamPath(
+            'mfa-enable', vartype='yesno',
+            path='multi-factor-auth/mfa-enable'))
+        params.append(VersionedParamPath(
+            'factors',
+            path='multi-factor-auth/factors'))
         """
         params.append(VersionedParamPath(
             'multi_factor_auth', vartype='',
