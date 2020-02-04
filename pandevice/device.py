@@ -367,6 +367,83 @@ class PasswordProfile(VersionedPanObject):
 
         self._params = tuple(params)
 
+class AuthenticationProfile(VersionedPanObject):
+    """Authentication profile object
+    Args:
+    """
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+    CHILDTYPES = (
+    )
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value='/authentication-profile')
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath(
+            'allow_list', vartype='member', default=['all'],
+            path='allow-list'))
+        params.append(VersionedParamPath(
+            'user_domain', path='user-domain'))
+        params.append(VersionedParamPath(
+            'username_modifier', path='username-modifier'))
+        params.append(VersionedParamPath(
+            'lockout-time', vartype='int',
+            path='lockout/lockout-time'))
+        params.append(VersionedParamPath(
+            'failed-attempts', vartype='int',
+            path='lockout/failed-attempts'))
+        params.append(VersionedParamPath(
+            'method', path='method/{method}',
+            values=['kerberos', 'ldap', 'local-database', 'none', 'radius', 'saml-idp', 'tacplus']))
+        params.append(VersionedParamPath(
+            'server_profile', path='method/{method}/server-profile',
+            condition={'method': ['ldap', 'kerberos', 'radius', 'saml-idp', 'tacplus']}))
+        params.append(VersionedParamPath(
+            'ldap_login_attribute', path='method/{method}/login-attribute',
+            condition={'method': ['ldap']}))
+        params.append(VersionedParamPath(
+            'ldap_passwd_exp_days', path='method/{method}/passwd-exp-days', vartype='member',
+            condition={'method': ['ldap']}))
+        params.append(VersionedParamPath(
+            'realm', path='method/{method}/realm',
+            condition={'method': ['kerberos']}))
+        params.append(VersionedParamPath(
+            'checkgroup', path='method/{method}/checkgroup',
+            condition={'method': ['radius', 'tacplus']}))
+
+        saml_idp_attrs = [
+            'attribute-name-access-domain',
+            'attribute-name-admin-role',
+            'attribute-name-usergroup',
+            'attribute-name-username',
+            'certificate-profile',
+            'enable-single-logout',
+            'request-signing-certificate',
+        ]
+        for attr in saml_idp_attrs:
+            params.append(VersionedParamPath(
+                attr, path='method/{method}/attr', condition={'method': ['saml-idp']}))
+
+        params.append(VersionedParamPath(
+            'mfa-enable', vartype='yesno',
+            path='multi-factor-auth/mfa-enable'))
+        params.append(VersionedParamPath(
+            'factors',
+            path='multi-factor-auth/factors'))
+        """
+        params.append(VersionedParamPath(
+            'multi_factor_auth', vartype='',
+            path='multi-factor-auth'))
+        params.append(VersionedParamPath(
+            'single_sign_on', vartype='',
+            path='single-sign-on'))
+        """
+
+        self._params = tuple(params)
 
 class Administrator(VersionedPanObject):
     """Administrator object
