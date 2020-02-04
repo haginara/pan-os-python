@@ -369,7 +369,30 @@ class PasswordProfile(VersionedPanObject):
 
 class AuthenticationProfile(VersionedPanObject):
     """Authentication profile object
+
     Args:
+        allow_list (member) - 
+        user_domain (str) - 
+        username_modifier (str) -
+        lockout-time (int) - 
+        failaed-attempts (int) -
+        method (str) - 
+        server_profile (str) -
+        ldap_login_attribute (str) -
+        ldap_passwd_exp_days (str) - 
+        realm (str) - 
+        checkgroup (str) 
+        attribute-name-access-domain (str) -
+        attribute-name-admin-role (str) -
+        attribute-name-usergroup (str) -
+        attribute-name-username (str) -
+        certificate-profile (str) -
+        enable-single-logout (str) -
+        request-signing-certificate (str) -
+        mfa-enable (yesno)
+        factors (str) -
+        multi_factor_auth (str) -
+        single_sign_on (str) - 
     """
     ROOT = Root.VSYS
     SUFFIX = ENTRY
