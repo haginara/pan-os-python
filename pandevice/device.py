@@ -1578,3 +1578,70 @@ class HttpIpTagParam(ValueEntry):
 
     """
     LOCATION = '/format/iptag/params'
+
+
+class LocalUser(VersionedPanObject):
+    """User object
+
+    Args:
+        name (str): Admin name
+        authentication_profile (str): The authentication profile
+        web_client_cert_only (bool): Use only client certificate authentication (Web)
+        superuser (bool): Admin type - superuser
+        superuser_read_only (bool): Admin type - superuser, read only
+        panorama_admin (bool): Panonrama - a panorama admin only
+        device_admin (bool): Admin type - device admin
+        device_admin_read_only (bool): Admin type - device admin, read only
+        vsys (list/str): Physical firewalls: the vsys this admin should manage
+        vsys_read_only (list/str): Physical firewalls: the vsys this read only admin should manage
+        ssh_public_key (str): Use Public Key Authentication (SSH)
+        role_profile (str): The role based profile
+        password_hash (encrypted str): The encrypted password
+        password_profile (str): The password profile for this user
+
+    """
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value='/local-user-database/user')
+        # params
+        params = []
+
+        params.append(VersionedParamPath(
+            'phash', vartype='encrypted_str', path='phash'))
+        self._params = tuple(params)
+
+class LocalGroup(VersionedPanObject):
+    """Group object
+
+    Args:
+        name (str): Admin name
+        authentication_profile (str): The authentication profile
+        web_client_cert_only (bool): Use only client certificate authentication (Web)
+        superuser (bool): Admin type - superuser
+        superuser_read_only (bool): Admin type - superuser, read only
+        panorama_admin (bool): Panonrama - a panorama admin only
+        device_admin (bool): Admin type - device admin
+        device_admin_read_only (bool): Admin type - device admin, read only
+        vsys (list/str): Physical firewalls: the vsys this admin should manage
+        vsys_read_only (list/str): Physical firewalls: the vsys this read only admin should manage
+        ssh_public_key (str): Use Public Key Authentication (SSH)
+        role_profile (str): The role based profile
+        password_hash (encrypted str): The encrypted password
+        password_profile (str): The password profile for this user
+
+    """
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value='/local-user-database/user-group')
+        # params
+        params = []
+
+        params.append(VersionedParamPath(
+            'user', vartype='member', path='user'))
+        self._params = tuple(params)
