@@ -1611,6 +1611,8 @@ class LocalUser(VersionedPanObject):
 
         params.append(VersionedParamPath(
             'phash', vartype='encrypted_str', path='phash'))
+        params.append(VersionedParamPath(
+            'disabled', vartype='yesno', path='disabled'))
         self._params = tuple(params)
 
 class LocalGroup(VersionedPanObject):
