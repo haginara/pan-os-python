@@ -1598,7 +1598,7 @@ class LocalUser(VersionedPanObject):
         params = []
 
         params.append(VersionedParamPath(
-            'phash', vartype='encrypted_str', path='phash'))
+            'password_hash', vartype='encrypted_str', path='phash'))
         params.append(VersionedParamPath(
             'disabled', vartype='yesno', default=False, path='disabled'))
         self._params = tuple(params)
