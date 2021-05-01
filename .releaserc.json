@@ -1,4 +1,5 @@
 {
+  "preset": "conventionalcommits",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
@@ -6,22 +7,26 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "poetry run .github/set-version.sh ${nextRelease.version}",
-        "publishCmd": "${!nextRelease.channel ? poetry publish --build -u $PYPI_USER -p $PYPI_PASS : echo >&2 \"Not using default release channel, publish to PyPI skipped\"}"
+        "publishCmd": "poetry publish --build"
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["pyproject.toml", "setup.py", "pandevice/__init__.py"],
+        "assets": [
+          "pyproject.toml",
+          "setup.py",
+          "README.rst",
+          "panos/__init__.py"
+        ],
         "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
       }
     ],
     [
       "@semantic-release/github",
       {
-        "successComment": ":tada: This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version} :tada:\n\nThe release is available on [PyPI](https://pypi.org/project/pandevice/) and [GitHub release](<github_release_url>)\n\n> Posted by [semantic-release](https://github.com/semantic-release/semantic-release) bot"
+        "successComment": ":tada: This ${issue.pull_request ? 'PR is included' : 'issue has been resolved'} in version ${nextRelease.version} :tada:\n\nThe release is available on [PyPI](https://pypi.org/project/pan-os-python/) and [GitHub release](<github_release_url>)\n\n> Posted by [semantic-release](https://github.com/semantic-release/semantic-release) bot"
       }
     ]
-  ],
-  "preset": "conventionalcommits"
+  ]
 }

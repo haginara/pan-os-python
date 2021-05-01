@@ -1,29 +1,32 @@
 [tool.poetry]
-name = "pandevice"
-version = "0.14.0"
+name = "pan-os-python"
+version = "1.0.2"
 description = "Framework for interacting with Palo Alto Networks devices via API"
 authors = ["Palo Alto Networks <devrel@paloaltonetworks.com>"]
 license = "ISC"
-keywords = ["pandevice"]
-readme = "README.rst"
-homepage = "https://github.com/PaloAltoNetworks/pandevice"
-repository = "https://github.com/PaloAltoNetworks/pandevice"
-documentation = "https://pandevice.readthedocs.io"
+keywords = ["panos", "pan-os-python"]
+readme = "README.md"
+homepage = "https://github.com/PaloAltoNetworks/pan-os-python"
+repository = "https://github.com/PaloAltoNetworks/pan-os-python"
+documentation = "https://pan-os-python.readthedocs.io"
+packages = [
+    { include = "panos" }
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: ISC License (ISCL)",
     "Natural Language :: English",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.5",
     "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
 ]
 
 [tool.poetry.dependencies]
 python = "^2.7 || ^3.5"
-pan-python = "^0.10.0"
+pan-python = "^0.16.0"
 
 [tool.poetry.dev-dependencies]
 pytest = {version = "^5.3.2", python = "^3.5"}
@@ -42,7 +45,7 @@ flake8-mock = "^0.3"
 flake8-docstrings = "^1.5.0"
 flake8-variables-names = "^0.0.3"
 pep8-naming = "^0.9.1"
-dephell = {version = "^0.8.0", python = "^3.6"}
+dephell = {version = "^0.8.3", python = "^3.6"}
 fissix = {version = "^19.2b1", python = "^3.6"}
 sphinx = {version = "^2.3.1", python = "^3.5"}
 pytest-cov = {version = "^2.8.1", python = "^3.5"}
@@ -50,6 +53,7 @@ sphinx_rtd_theme = {version = "^0.4.3", python = "^3.5"}
 sphinx-autobuild = {version = "^0.7.1", python = "^3.5"}
 bandit = "^1.6.2"
 isort = "^4.3.21"
+m2r = "^0.2.1"
 
 [tool.dephell.main]
 # read from poetry file

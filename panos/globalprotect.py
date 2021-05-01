@@ -16,15 +16,13 @@
 
 
 
+# import other parts of this panos package
+import panos.errors as err
 # import modules
-from pandevice import getlogger
-from pandevice.base import PanObject, Root, MEMBER, ENTRY
-from pandevice.base import VarPath as Var
-from pandevice.base import VersionedPanObject
-from pandevice.base import VersionedParamPath
-
-# import other parts of this pandevice package
-import pandevice.errors as err
+from panos import getlogger
+from panos.base import ENTRY, MEMBER, PanObject, Root
+from panos.base import VarPath as Var
+from panos.base import VersionedPanObject, VersionedParamPath
 
 logger = getlogger(__name__)
 
