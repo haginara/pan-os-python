@@ -17,7 +17,6 @@
 
 # import other parts of this panos package
 import panos.errors as err
-
 # import modules
 from panos import getlogger
 from panos.base import ENTRY, MEMBER, PanObject, Root
@@ -62,7 +61,6 @@ class GlobalProtectGateway(VersionedPanObject):
                 "certificate_profile", path="certificate_profile", vartype="string"
             )
         )
-        # TODO: hip-notificiation has more data
         params.append(
             VersionedParamPath(
                 "hip_notification", path="hip-notification", vartype="entry"
@@ -73,6 +71,21 @@ class GlobalProtectGateway(VersionedPanObject):
                 "ssl_tls_service_profile", path="ssl-tls-service-profile"
             )
         )
+        # TODO: Implement this
+        # disallow-automatic-restoration
+        # source-ip-enforcement
+        # params.append(
+        #    VersionedParamPath(
+        #        "security_restrictions",
+        #        path="security-restrictions/disallow-automatic-restoration",
+        #    )
+        # )
+        # params.append(
+        #    VersionedParamPath(
+        #        "security_restrictions",
+        #        path="security-restrictions/source-ip-enforcement",
+        #    )
+        # )
         params.append(
             VersionedParamPath("tunnel_mode", vartype="yesno", path="tunnel-mode")
         )
