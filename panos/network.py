@@ -21,12 +21,12 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 
-import pandevice
-import pandevice.errors as err
-from pandevice import device, getlogger, string_or_list
-from pandevice.base import ENTRY, MEMBER, PanObject, Root
-from pandevice.base import VarPath as Var
-from pandevice.base import VersionedPanObject, VersionedParamPath, VsysOperations
+import panos
+import panos.errors as err
+from panos import device, getlogger, string_or_list
+from panos.base import ENTRY, MEMBER, PanObject, Root
+from panos.base import VarPath as Var
+from panos.base import VersionedPanObject, VersionedParamPath, VsysOperations
 
 logger = getlogger(__name__)
 
@@ -46,7 +46,7 @@ def interface(name, *args, **kwargs):
         tag (int): Tag for the interface, aka vlan id
 
     Returns:
-        Interface: An instantiated subclass of :class:`pandevice.network.Interface`
+        Interface: An instantiated subclass of :class:`panos.network.Interface`
 
     """
     name = str(name)
@@ -93,12 +93,16 @@ class Zone(VersionedPanObject):
         mode (str): The mode of the security zone. Must match the mode of the interface.
             Possible values: tap, virtual-wire, layer2, layer3, external
         interface (list): List of interface names or instantiated subclasses
-            of :class:`pandevice.network.Interface`.
+            of :class:`panos.network.Interface`.
         zone_profile (str): Zone protection profile
         log_setting (str): Log forwarding setting
         enable_user_identification (bool): If user identification is enabled
         include_acl (list/str): User identification ACL include list
         exclude_acl (list/str): User identification ACL exclude list
+        enable_packet_buffer_protection (bool): (PAN-OS 8.0+) Enable packet buffer protection
+        enable_device_identification (bool): (PAN-OS 10.0+) Enable device identification
+        device_include_acl (list): (PAN-OS 10.0+) Device include ACLs list
+        device_exclude_acl (list): (PAN-OS 10.0+) Device exclude ACLs list
 
     """
 
@@ -148,6 +152,24 @@ class Zone(VersionedPanObject):
                 "exclude_acl", vartype="member", path="user-acl/exclude-list"
             )
         )
+        params.append(
+            VersionedParamPath("enable_packet_buffer_protection", exclude=True,)
+        )
+        params[-1].add_profile(
+            "8.0.0", path="network/enable-packet-buffer-protection", vartype="yesno",
+        )
+        params.append(VersionedParamPath("enable_device_identification", exclude=True,))
+        params[-1].add_profile(
+            "10.0.0", path="enable-device-identification", vartype="yesno",
+        )
+        params.append(VersionedParamPath("device_include_acl", exclude=True,))
+        params[-1].add_profile(
+            "10.0.0", path="device-acl/include-list", vartype="member",
+        )
+        params.append(VersionedParamPath("device_exclude_acl", exclude=True,))
+        params[-1].add_profile(
+            "10.0.0", path="device-acl/exclude-acl", vartype="member",
+        )
 
         self._params = tuple(params)
 
@@ -155,7 +177,7 @@ class Zone(VersionedPanObject):
 class StaticMac(VersionedPanObject):
     """Static MAC address for a Vlan
 
-    Can be added to a :class:`pandevice.network.Vlan` object
+    Can be added to a :class:`panos.network.Vlan` object
 
     Args:
         interface (str): Name of an interface
@@ -217,7 +239,7 @@ class Vlan(VsysOperations):
 class IPv6Address(VersionedPanObject):
     """IPv6 Address
 
-    Can be added to any :class:`pandevice.network.Interface` subclass
+    Can be added to any :class:`panos.network.Interface` subclass
     that supports IPv6.
 
     Args:
@@ -329,9 +351,9 @@ class Interface(VsysOperations):
 
         Args:
             zone_name (str): The name of the Zone or a
-                :class:`pandevice.network.Zone` instance
+                :class:`panos.network.Zone` instance
             mode (str): The mode of the zone. See
-                :class:`pandevice.network.Zone` for possible values
+                :class:`panos.network.Zone` for possible values
             refresh (bool): Refresh the relevant current state of the device
                 before taking action (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -383,7 +405,7 @@ class Interface(VsysOperations):
 
         Args:
             virtual_router_name (str): The name of the VirtualRouter or
-                a :class:`pandevice.network.VirtualRouter` instance
+                a :class:`panos.network.VirtualRouter` instance
             refresh (bool): Refresh the relevant current state of the device
                 before taking action (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -433,7 +455,7 @@ class Interface(VsysOperations):
 
         Args:
             vlan_name (str): The name of the vlan or
-                a :class:`pandevice.network.Vlan` instance
+                a :class:`panos.network.Vlan` instance
             refresh (bool): Refresh the relevant current state of the device
                 before taking action (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -497,7 +519,7 @@ class Interface(VsysOperations):
                     entry = counters["ifnet"]["ifnet"]["entry"][0]
 
             # Convert strings to integers, if they are integers
-            entry.update((k, pandevice.convert_if_int(v)) for k, v in entry.items())
+            entry.update((k, panos.convert_if_int(v)) for k, v in entry.items())
 
             # If empty dictionary (no results) it usually means the interface is not
             # configured, so return None
@@ -637,7 +659,7 @@ class VirtualWire(VsysOperations):
         # params
         params = []
 
-        params.append(VersionedParamPath("tag", path="tag-allowed", vartype="int"))
+        params.append(VersionedParamPath("tag", path="tag-allowed"))
         params.append(VersionedParamPath("interface1", path="interface1"))
         params.append(VersionedParamPath("interface2", path="interface2"))
         params.append(
@@ -751,7 +773,7 @@ class AbstractSubinterface(object):
 
         Args:
             virtual_router_name (str): The name of the VirtualRouter or
-                a :class:`pandevice.network.VirtualRouter` instance
+                a :class:`panos.network.VirtualRouter` instance
             refresh (bool): Refresh the relevant current state of the device before taking action
                 (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -787,8 +809,8 @@ class AbstractSubinterface(object):
             add (bool): Add the newly instantiated subinterface to the base interface object
 
         Returns:
-            Subinterface: A :class:`pandevice.network.Layer3Subinterface` or
-            :class:`pandevice.network.Layer2Subinterface` instance, depending on the mode argument
+            Subinterface: A :class:`panos.network.Layer3Subinterface` or
+            :class:`panos.network.Layer2Subinterface` instance, depending on the mode argument
 
         """
         if self.parent is not None:
@@ -1009,9 +1031,9 @@ class PhysicalInterface(Interface):
 
         Args:
             zone_name (str): The name of the Zone or a
-                :class:`pandevice.network.Zone` instance
+                :class:`panos.network.Zone` instance
             mode (str): The mode of the zone. See
-                :class:`pandevice.network.Zone` for possible values
+                :class:`panos.network.Zone` for possible values
             refresh (bool): Refresh the relevant current state of the device
                 before taking action (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -1589,7 +1611,7 @@ class VlanInterface(Interface):
 
         Args:
             vlan_name (str): The name of the vlan or
-                a :class:`pandevice.network.Vlan` instance
+                a :class:`panos.network.Vlan` instance
             refresh (bool): Refresh the relevant current state of the device
                 before taking action (Default: False)
             update (bool): Apply the changes to the device (Default: False)
@@ -1732,7 +1754,7 @@ class TunnelInterface(Interface):
 class StaticRoute(VersionedPanObject):
     """Static Route
 
-    Add to a :class:`pandevice.network.VirtualRouter` instance.
+    Add to a :class:`panos.network.VirtualRouter` instance.
 
     Args:
         name (str): The name
@@ -1742,10 +1764,14 @@ class StaticRoute(VersionedPanObject):
         interface (str): Next hop interface
         admin_dist (str): Administrative distance
         metric (int): Metric (Default: 10)
-
+        enable_path_monitor (bool): Enable Path Monitor
+        failure_condition (str): Path Monitor failure condition set 'any' or 'all' 
+        preemptive_hold_time (int): Path Monitor Preemptive Hold Time in minutes
+        
     """
 
     SUFFIX = ENTRY
+    CHILDTYPES = ("network.PathMonitorDestination",)
 
     def _setup(self):
         # xpaths
@@ -1771,6 +1797,23 @@ class StaticRoute(VersionedPanObject):
         params.append(
             VersionedParamPath("metric", default=10, vartype="int", path="metric")
         )
+        params.append(
+            VersionedParamPath(
+                "enable_path_monitor", path="path-monitor/enable", vartype="yesno"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "failure_condition",
+                values=("all", "any"),
+                path="path-monitor/failure-condition",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "preemptive_hold_time", vartype="int", path="path-monitor/hold-time"
+            )
+        )
 
         self._params = tuple(params)
 
@@ -1778,7 +1821,7 @@ class StaticRoute(VersionedPanObject):
 class StaticRouteV6(VersionedPanObject):
     """IPV6 Static Route
 
-    Add to a :class:`pandevice.network.VirtualRouter` instance.
+    Add to a :class:`panos.network.VirtualRouter` instance.
 
     Args:
         name (str): The name
@@ -1788,10 +1831,14 @@ class StaticRouteV6(VersionedPanObject):
         interface (str): Next hop interface
         admin_dist (str): Administrative distance
         metric (int): Metric (Default: 10)
+        enable_path_monitor (bool): Enable Path Monitor
+        failure_condition (str): Path Monitor failure condition set 'any' or 'all' 
+        preemptive_hold_time (int): Path Monitor Preemptive Hold Time in minutes
 
     """
 
     SUFFIX = ENTRY
+    CHILDTYPES = ("network.PathMonitorDestination",)
 
     def _setup(self):
         # xpaths
@@ -1816,6 +1863,58 @@ class StaticRouteV6(VersionedPanObject):
         )
         params.append(
             VersionedParamPath("metric", default=10, vartype="int", path="metric")
+        )
+        params.append(
+            VersionedParamPath(
+                "enable_path_monitor", path="path-monitor/enable", vartype="yesno"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "failure_condition",
+                values=("all", "any"),
+                path="path-monitor/failure-condition",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "preemptive_hold_time", vartype="int", path="path-monitor/hold-time"
+            )
+        )
+
+        self._params = tuple(params)
+
+
+class PathMonitorDestination(VersionedPanObject):
+    """PathMonitorDestination Static Route 
+
+    Args:
+        name (str): Name of Path Monitor Destination 
+        enable (bool): Enable Path Monitor Destination 
+        source (str): Source ip of interface
+        destination (str): Destination ip 
+        interval (int): Ping Interval (sec) (Default: 3)
+        count (int): Ping count (Default: 5)
+       
+    """
+
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/path-monitor/monitor-destinations")
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath("enable", vartype="yesno", path="enable"))
+        params.append(VersionedParamPath("source", path="source"))
+        params.append(VersionedParamPath("destination", path="destination"))
+        params.append(
+            VersionedParamPath("interval", default=3, vartype="int", path="interval")
+        )
+        params.append(
+            VersionedParamPath("count", default=5, vartype="int", path="count")
         )
 
         self._params = tuple(params)
@@ -2259,7 +2358,7 @@ class OspfAreaInterface(VersionedPanObject):
         retransmit_interval (int): Retransmit interval
         transit_delay (int): Transit delay
         gr_delay (int): Graceful restart delay
-        authentication (str): Reference to a :class:`pandevice.network.OspfAuthProfile`
+        authentication (str): Reference to a :class:`panos.network.OspfAuthProfile`
 
     """
 
@@ -2321,7 +2420,7 @@ class OspfAuthProfile(VersionedPanObject):
         name (str): Name of Auth Profile
         type (str): 'password' or 'md5'
         password (str): The password if type is set to 'password'.
-            If type is set to 'md5', add a :class:`pandevice.network.OspfAuthProfileMd5`
+            If type is set to 'md5', add a :class:`panos.network.OspfAuthProfileMd5`
 
     """
 
@@ -2373,7 +2472,7 @@ class OspfExportRules(VersionedPanObject):
     """OSPF Export Rules
 
     Args:
-        name (str): IP subnet or :class:`pandevice.network.RedistributionProfile`
+        name (str): IP subnet or :class:`panos.network.RedistributionProfile`
         new_path_type (str): New path type, 'ext-1' or 'ext-2' (Default: ext-2)
         new_tag (str): New tag (int or IP format)
         metric (int): Metric
@@ -3629,8 +3728,8 @@ class IkeGateway(VersionedPanObject):
         version: (7.0+) ikev1, ikev2, or ikev2-prefered (default: ikev1)
         enable_ipv6 (bool): (7.0+) enable IPv6
         disabled (bool): (7.0+) disable this object
-        peer_ip_type: ip or dynamic (default: ip)
-        peer_ip_value: the IP for peer_ip_type of 'ip'
+        peer_ip_type: ip, dynamic, or fqdn (8.1+) (default: ip)
+        peer_ip_value: the IP for peer_ip_type of 'ip' or 'fqdn'
         interface: local gateway end-point
         local_ip_address_type: ip or floating-ip
         local_ip_address: IP address if interface has multiple addresses
@@ -3709,12 +3808,22 @@ class IkeGateway(VersionedPanObject):
                 path="peer-address/{peer_ip_type}",
             )
         )
+        params[-1].add_profile(
+            "8.1.0",
+            values=("ip", "dynamic", "fqdn",),
+            path="peer-address/{peer_ip_type}",
+        )
         params.append(
             VersionedParamPath(
                 "peer_ip_value",
                 condition={"peer_ip_type": "ip"},
                 path="peer-address/{peer_ip_type}",
             )
+        )
+        params[-1].add_profile(
+            "8.1.0",
+            condition={"peer_ip_type": ["ip", "fqdn"]},
+            path="peer-address/{peer_ip_type}",
         )
         params.append(VersionedParamPath("interface", path="local-address/interface"))
         params.append(
@@ -3941,7 +4050,6 @@ class IpsecTunnel(VersionedPanObject):
     Args:
         name: IPSec tunnel name
         tunnel_interface: apply IPSec VPN tunnels to tunnel interface
-        anti_replay (bool): enable anti-replay check on this tunnel
         ipv6 (bool): (7.0+) use IPv6 for the IPSec tunnel
         type: auto-key (default), manual-key, or global-protect-satellite
         ak_ike_gateway (string/list): IKE gateway name
@@ -4015,9 +4123,6 @@ class IpsecTunnel(VersionedPanObject):
         params = []
 
         params.append(VersionedParamPath("tunnel_interface", path="tunnel-interface"))
-        params.append(
-            VersionedParamPath("anti_replay", path="anti-replay", vartype="yesno")
-        )
         params.append(VersionedParamPath("ipv6", exclude=True))
         params[-1].add_profile("7.0.0", vartype="yesno", path="ipv6")
         params.append(
@@ -4259,7 +4364,7 @@ class IpsecTunnel(VersionedPanObject):
     def set_mk_esp_encryption(self, value):
         """Version agnostic set for mk_esp_encryption.
 
-        This object should be connected to a pandevice.Firewall before
+        This object should be connected to a panos.Firewall before
         invocation.
 
         Valid values include the following:
@@ -4561,7 +4666,7 @@ class IpsecCryptoProfile(VersionedPanObject):
     def set_esp_encryption(self, value):
         """Version agnostic set for esp_encryption.
 
-        This object should be connected to a pandevice.Firewall before
+        This object should be connected to a panos.Firewall before
         invocation.
 
         Valid values include the following:
@@ -4734,7 +4839,7 @@ class IkeCryptoProfile(VersionedPanObject):
     def set_encryption(self, value):
         """Version agnostic set for encryption.
 
-        This object should be connected to a pandevice.Firewall before
+        This object should be connected to a panos.Firewall before
         invocation.
 
         Valid values include the following:
@@ -4873,5 +4978,83 @@ class GreTunnel(VersionedPanObject):
             )
         )
         params.append(VersionedParamPath("disabled", vartype="yesno", path="disabled"))
+
+        self._params = tuple(params)
+
+
+class Dhcp(VersionedPanObject):
+    """DHCP config.
+
+    Args:
+        name (str): Interface name.
+
+    """
+
+    SUFFIX = ENTRY
+    ROOT = Root.DEVICE
+
+    CHILDTYPES = ("network.DhcpRelay",)
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/network/dhcp/interface")
+
+        # params
+        self._params = ()
+
+
+class DhcpRelay(VersionedPanObject):
+    """DHCP relay config.
+
+    Args:
+        enabled (bool): Enabled.
+        servers (list): Relay server IP addresses.
+        ipv6_enabled (bool): Enable DHCPv6 relay.
+
+    """
+
+    SUFFIX = None
+    CHILDTYPES = ("network.DhcpRelayIpv6Address",)
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/relay")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath("enabled", vartype="yesno", path="ip/enabled"),
+        )
+        params.append(
+            VersionedParamPath("servers", vartype="member", path="ip/server"),
+        )
+        params.append(
+            VersionedParamPath("ipv6_enabled", vartype="yesno", path="ipv6/enabled"),
+        )
+
+        self._params = tuple(params)
+
+
+class DhcpRelayIpv6Address(VersionedPanObject):
+    """DHCP relay IPv6 address.
+
+    Args:
+        name (str): DHCP server IPv6 address.
+        interface (str): Outgoing interface when using an IPv6 multicast address for
+            the DHCPv6 server.
+
+    """
+
+    SUFFIX = ENTRY
+    ROOT = Root.DEVICE
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/ipv6/server")
+
+        params = []
+
+        params.append(VersionedParamPath("interface", path="interface"),)
 
         self._params = tuple(params)

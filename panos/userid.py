@@ -22,9 +22,9 @@ from copy import deepcopy
 
 from pan.xapi import PanXapiError
 
-import pandevice.errors as err
-from pandevice import getlogger, string_or_list, string_or_list_or_none
-from pandevice.updater import PanOSVersion
+import panos.errors as err
+from panos import getlogger, string_or_list, string_or_list_or_none
+from panos.updater import PanOSVersion
 
 logger = getlogger(__name__)
 
@@ -674,7 +674,7 @@ class UserId(object):
         # Find the tags section for this specific user.
         entries = ru.findall("./entry")
         for entry in entries:
-            if entry.attrib["name"] == user:
+            if entry.attrib["user"] == user:
                 te = entry.find("./tag")
                 break
         else:
@@ -718,7 +718,7 @@ class UserId(object):
         # Find the tags section for this specific user.
         entries = uu.findall("./entry")
         for entry in entries:
-            if entry.attrib["name"] == user:
+            if entry.attrib["user"] == user:
                 break
         else:
             entry = ET.SubElement(uu, "entry", {"user": user,})

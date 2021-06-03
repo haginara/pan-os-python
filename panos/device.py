@@ -16,11 +16,11 @@
 
 """Device module contains objects that exist in the 'Device' tab in the firewall GUI"""
 
-import pandevice.errors as err
-from pandevice import getlogger
-from pandevice.base import ENTRY, MEMBER, PanObject, Root, ValueEntry
-from pandevice.base import VarPath as Var
-from pandevice.base import VersionedPanObject, VersionedParamPath
+import panos.errors as err
+from panos import getlogger
+from panos.base import ENTRY, MEMBER, PanObject, Root, ValueEntry
+from panos.base import VarPath as Var
+from panos.base import VersionedPanObject, VersionedParamPath
 
 logger = getlogger(__name__)
 
@@ -81,21 +81,21 @@ class Vsys(VersionedPanObject):
 
     You can interact with virtual systems in two different ways:
 
-    **Method 1**. Use a :class:`pandevice.firewall.Firewall` object with the 'vsys'
+    **Method 1**. Use a :class:`panos.firewall.Firewall` object with the 'vsys'
     variable set to a vsys identifier (eg. 'vsys2'). In this case,
     you don't need to use this Vsys class. Add other PanObject instances
-    (like :class:`pandevice.objects.AddressObject`) to the Firewall instance
+    (like :class:`panos.objects.AddressObject`) to the Firewall instance
 
-    **Method 2**. Add an instance of this Vsys class to a :class:`pandevice.firewall.Firewall`
+    **Method 2**. Add an instance of this Vsys class to a :class:`panos.firewall.Firewall`
     object. It is best practice to set the Firewall instance's 'shared'
     variable to True when using this method. Add other PanObject instances
-    (like :class:`pandevice.objects.AddressObject`) to the Vsys instance.
+    (like :class:`panos.objects.AddressObject`) to the Vsys instance.
 
     Args:
         name (str): Vsys identifier (eg. 'vsys1', 'vsys5', etc)
         display_name (str): Friendly name of the vsys
         interface (list): A list of strings with names of interfaces
-            or a list of :class:`pandevice.network.Interface` objects
+            or a list of :class:`panos.network.Interface` objects
         vlans (list): A list of strings of VLANs
         virtual_wires (list): A list of strings of virtual wires
         virtual_routers (list): A list of strings of virtual routers
@@ -109,9 +109,12 @@ class Vsys(VersionedPanObject):
     VSYS_LABEL = "vsys"
     SUFFIX = ENTRY
     CHILDTYPES = (
+        "device.AuthenticationProfile",
+        "device.AuthenticationSequence",
         "device.VsysResources",
         "device.SnmpServerProfile",
         "device.EmailServerProfile",
+        "device.LdapServerProfile",
         "device.SyslogServerProfile",
         "device.HttpServerProfile",
         "objects.AddressObject",
@@ -126,6 +129,8 @@ class Vsys(VersionedPanObject):
         "objects.CustomUrlCategory",
         "objects.LogForwardingProfile",
         "objects.DynamicUserGroup",
+        "objects.Region",
+        "objects.Edl",
         "policies.Rulebase",
         "network.EthernetInterface",
         "network.AggregateInterface",
@@ -231,7 +236,7 @@ class NTPServer(PanObject):
 class NTPServerPrimary(NTPServer):
     """A primary NTP server
 
-    Add to a :class:`pandevice.device.SystemSettings` object
+    Add to a :class:`panos.device.SystemSettings` object
 
     Args:
         address (str): IP address or hostname of NTP server
@@ -244,7 +249,7 @@ class NTPServerPrimary(NTPServer):
 class NTPServerSecondary(NTPServer):
     """A secondary NTP server
 
-    Add to a :class:`pandevice.device.SystemSettings` object
+    Add to a :class:`panos.device.SystemSettings` object
 
     Args:
         address (str): IP address or hostname of NTP server
@@ -416,6 +421,250 @@ class PasswordProfile(VersionedPanObject):
                 "grace_period",
                 vartype="int",
                 path="password-change/post-expiration-grace-period",
+            )
+        )
+
+        self._params = tuple(params)
+
+
+class AuthenticationProfile(VersionedPanObject):
+    """Authentication profile object.
+
+    Note:  This is valid for PAN-OS 8.0+.
+
+    Args:
+        name (string): The name
+        profile_type: Authentication profile type.  Valid values are "none" (default),
+            "kerberos", "ldap", "local-database", "radius", "saml-idp", or "tacplus".
+        server_profile (string): Login method server profile
+        retrieve_user_group (bool): Retrieve user group from RADIUS or TACACS+
+        ldap_login_attribute (string): LDAP login attribute
+        ldap_password_expiry_warning (string): LDAP number of days prior to warning a
+            user about password expiry
+        kerberos_realm (string): Kerberos realm name to be used for authentication
+        saml_request_signing_certificate (string): SAML-IDP request signing certificate
+        saml_enable_single_logout (bool): SAML enable single_logout
+        saml_certificate_profile (string): SAML certificate profile
+        saml_username_attribute (string): SAML attribute name usrname
+        saml_user_group_attribute (string): SAML attribute name user group
+        saml_admin_role_attribute (string): SAML attribute name admin role
+        saml_access_domain_attribute (string): SAML attribute name access domain
+        user_domain (string): User domain
+        username_modifier (string): Username modifier
+        sso_realm (string): Single-sign-on Kerberos realm
+        sso_service_principal (string): Single-sign-on Kerberos service principal
+        sso_keytab (string): Single-sign-on Kerberos keytab
+        mfa_enable (bool): Multi factor auth enable
+        mfa_factors (list): Multi factor auth factors
+        allow_list (list): Allow users
+        failed_attempts (int): number of permitted failed attempts
+        lockout_time (int): amount of time use will be locked
+
+    """
+
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/authentication-profile")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath(
+                "profile_type",
+                default="none",
+                path="method/{profile_type}",
+                values=(
+                    "kerberos",
+                    "ldap",
+                    "local-database",
+                    "none",
+                    "radius",
+                    "saml-idp",
+                    "tacplus",
+                ),
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "server_profile",
+                condition={
+                    "profile_type": [
+                        "kerberos",
+                        "ldap",
+                        "radius",
+                        "saml-idp",
+                        "tacplus",
+                    ]
+                },
+                path="method/{profile_type}/server-profile",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "retrieve_user_group",
+                condition={"profile_type": ["radius", "tacplus"]},
+                vartype="yesno",
+                path="method/{profile_type}/checkgroup",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "ldap_login_attribute",
+                condition={"profile_type": "ldap"},
+                path="method/{profile_type}/login-attribute",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "ldap_password_expiry_warning",
+                condition={"profile_type": "ldap"},
+                path="method/{profile_type}/passwd-exp-days",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "kerberos_realm",
+                condition={"profile_type": "kerberos"},
+                path="method/{profile_type}/realm",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_request_signing_certificate",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/request-signing-certificate",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_enable_single_logout",
+                vartype="bool",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/enable-single-logout",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_certificate_profile",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/certificate-profile",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_username_attribute",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/attribute-name-username",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_user_group_attribute",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/attribute-name-usergroup",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_admin_role_attribute",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/attribute-name-admin-role",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "saml_access_domain_attribute",
+                condition={"profile_type": "saml-idp"},
+                path="method/{profile_type}/attribute-name-access-domain",
+            )
+        )
+        params.append(
+            VersionedParamPath("user_domain", vartype="str", path="user-domain")
+        )
+        params.append(
+            VersionedParamPath(
+                "username_modifier",
+                default="%USERINPUT%",
+                vartype="string",
+                path="username-modifier",
+            )
+        )
+        params.append(VersionedParamPath("sso_realm", path="single-sign-on/realm"))
+        params.append(
+            VersionedParamPath(
+                "sso_service_principal", path="single-sign-on/service-principal"
+            )
+        )
+        params.append(
+            VersionedParamPath("sso_keytab", path="single-sign-on/kerberos-keytab")
+        )
+        params.append(
+            VersionedParamPath(
+                "mfa_enable", vartype="yesno", path="multi-factor-auth/mfa-enable"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "mfa_factors", vartype="member", path="multi-factor-auth/factors"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "allow_list", vartype="member", default=["all"], path="allow-list"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "failed_attempts", vartype="int", path="locakout/failed-attempts"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "lockout_time", vartype="int", path="lockout/lockout-time"
+            )
+        )
+
+        self._params = tuple(params)
+
+
+class AuthenticationSequence(VersionedPanObject):
+    """Authentication Sequence object.
+
+    Note:  This is valid for PAN-OS 7.0+.
+
+    Args:
+        name (string): The name
+        authentication_profiles (list): The authentication profiles
+        use_domain_find_profile (bool): Use domain find profile
+    """
+
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/authentication-sequence")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath(
+                "authentication_profiles",
+                vartype="member",
+                path="authentication-profiles",
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "use_domain_find_profile",
+                default=True,
+                vartype="yesno",
+                path="use-domain-find-profile",
             )
         )
 
@@ -620,7 +869,7 @@ class SnmpServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
         "device.SnmpV2cServer",
@@ -653,7 +902,7 @@ class SnmpV2cServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -682,7 +931,7 @@ class SnmpV3Server(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -729,7 +978,7 @@ class EmailServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = ("device.EmailServer",)
 
@@ -786,7 +1035,7 @@ class EmailServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -801,6 +1050,110 @@ class EmailServer(VersionedPanObject):
         params.append(VersionedParamPath("to", path="to"))
         params.append(VersionedParamPath("also_to", path="and-also-to"))
         params.append(VersionedParamPath("email_gateway", path="gateway"))
+
+        self._params = tuple(params)
+
+
+class LdapServerProfile(VersionedPanObject):
+    """An ldap server profile.
+
+    Note: Valid for PAN-OS 7.0+.
+
+    Args:
+        name (str): The name
+        ldap_type (str): Ldap profile type. Valid values are "other" (default),
+            "active-directory", "e-directory", or "sun".
+        base (str): Base DN
+        bind_dn (str): Bind DN
+        bind_password (str): Bind password
+        bind_timelimit (int): Bind timeout
+        timelimit (int): Search timeout
+        retry_interval (int): Retry interval
+        ssl (bool): Require ssl/ttls secured connection
+        verify_server_certificate (bool): Verify server certificate for ssl sessions
+        disabled (bool): Disabled or not
+
+    """
+
+    ROOT = Root.PANORAMA_VSYS
+    SUFFIX = ENTRY
+    CHILDTYPES = ("device.LdapServer",)
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/server-profile/ldap")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath(
+                "ldap_type",
+                default="other",
+                path="ldap-type",
+                values=["other", "active-directory", "e-directory", "sun"],
+            )
+        )
+        params.append(VersionedParamPath("base", path="base"))
+        params.append(VersionedParamPath("bind_dn", path="bind-dn"))
+        params.append(
+            VersionedParamPath(
+                "bind_password", vartype="encrypted", path="bind-password"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "bind_timelimit", default="30", vartype="int", path="bind-timelimit"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "timelimit", default="30", vartype="int", path="timelimit"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "retry_interval", default="60", vartype="int", path="retry-interval"
+            )
+        )
+        params.append(VersionedParamPath("ssl", vartype="yesno", path="ssl"))
+        params.append(
+            VersionedParamPath(
+                "verify_server_certificate",
+                condition={"ssl": True},
+                vartype="yesno",
+                path="verify-server-certificate",
+            )
+        )
+        params.append(
+            VersionedParamPath("disabled", vartype="yesno", path="disabled",),
+        )
+
+        self._params = tuple(params)
+
+
+class LdapServer(VersionedPanObject):
+    """An ldap server in a ldap server profile
+
+    Args:
+        name (str): The name
+        address (str): IP address or FQDN of ldap server to use
+        port (str): port number
+
+    """
+
+    ROOT = Root.PANORAMA_VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/server")
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath("address", path="address"))
+        params.append(VersionedParamPath("port", vartype="int", path="port"))
 
         self._params = tuple(params)
 
@@ -829,7 +1182,7 @@ class SyslogServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = ("device.SyslogServer",)
 
@@ -889,7 +1242,7 @@ class SyslogServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -980,7 +1333,7 @@ class HttpServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
         "device.HttpServer",
@@ -1140,7 +1493,7 @@ class HttpServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -1188,6 +1541,7 @@ class HttpConfigHeader(ValueEntry):
     """
 
     LOCATION = "/format/config/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpConfigParam(ValueEntry):
@@ -1202,6 +1556,7 @@ class HttpConfigParam(ValueEntry):
     """
 
     LOCATION = "/format/config/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSystemHeader(ValueEntry):
@@ -1216,6 +1571,7 @@ class HttpSystemHeader(ValueEntry):
     """
 
     LOCATION = "/format/system/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSystemParam(ValueEntry):
@@ -1230,6 +1586,7 @@ class HttpSystemParam(ValueEntry):
     """
 
     LOCATION = "/format/system/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpThreatHeader(ValueEntry):
@@ -1244,6 +1601,7 @@ class HttpThreatHeader(ValueEntry):
     """
 
     LOCATION = "/format/threat/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpThreatParam(ValueEntry):
@@ -1258,6 +1616,7 @@ class HttpThreatParam(ValueEntry):
     """
 
     LOCATION = "/format/threat/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTrafficHeader(ValueEntry):
@@ -1272,6 +1631,7 @@ class HttpTrafficHeader(ValueEntry):
     """
 
     LOCATION = "/format/traffic/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTrafficParam(ValueEntry):
@@ -1286,6 +1646,7 @@ class HttpTrafficParam(ValueEntry):
     """
 
     LOCATION = "/format/traffic/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpHipMatchHeader(ValueEntry):
@@ -1300,6 +1661,7 @@ class HttpHipMatchHeader(ValueEntry):
     """
 
     LOCATION = "/format/hip-match/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpHipMatchParam(ValueEntry):
@@ -1314,6 +1676,7 @@ class HttpHipMatchParam(ValueEntry):
     """
 
     LOCATION = "/format/hip-match/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUrlHeader(ValueEntry):
@@ -1328,6 +1691,7 @@ class HttpUrlHeader(ValueEntry):
     """
 
     LOCATION = "/format/url/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUrlParam(ValueEntry):
@@ -1342,6 +1706,7 @@ class HttpUrlParam(ValueEntry):
     """
 
     LOCATION = "/format/url/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpDataHeader(ValueEntry):
@@ -1356,6 +1721,7 @@ class HttpDataHeader(ValueEntry):
     """
 
     LOCATION = "/format/data/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpDataParam(ValueEntry):
@@ -1370,6 +1736,7 @@ class HttpDataParam(ValueEntry):
     """
 
     LOCATION = "/format/data/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpWildfireHeader(ValueEntry):
@@ -1384,6 +1751,7 @@ class HttpWildfireHeader(ValueEntry):
     """
 
     LOCATION = "/format/wildfire/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpWildfireParam(ValueEntry):
@@ -1398,6 +1766,7 @@ class HttpWildfireParam(ValueEntry):
     """
 
     LOCATION = "/format/wildfire/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTunnelHeader(ValueEntry):
@@ -1412,6 +1781,7 @@ class HttpTunnelHeader(ValueEntry):
     """
 
     LOCATION = "/format/tunnel/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTunnelParam(ValueEntry):
@@ -1426,6 +1796,7 @@ class HttpTunnelParam(ValueEntry):
     """
 
     LOCATION = "/format/tunnel/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUserIdHeader(ValueEntry):
@@ -1440,6 +1811,7 @@ class HttpUserIdHeader(ValueEntry):
     """
 
     LOCATION = "/format/userid/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUserIdParam(ValueEntry):
@@ -1454,6 +1826,7 @@ class HttpUserIdParam(ValueEntry):
     """
 
     LOCATION = "/format/userid/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpGtpHeader(ValueEntry):
@@ -1468,6 +1841,7 @@ class HttpGtpHeader(ValueEntry):
     """
 
     LOCATION = "/format/gtp/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpGtpParam(ValueEntry):
@@ -1482,6 +1856,7 @@ class HttpGtpParam(ValueEntry):
     """
 
     LOCATION = "/format/gtp/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpAuthHeader(ValueEntry):
@@ -1496,6 +1871,7 @@ class HttpAuthHeader(ValueEntry):
     """
 
     LOCATION = "/format/auth/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpAuthParam(ValueEntry):
@@ -1510,6 +1886,7 @@ class HttpAuthParam(ValueEntry):
     """
 
     LOCATION = "/format/auth/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSctpHeader(ValueEntry):
@@ -1524,6 +1901,7 @@ class HttpSctpHeader(ValueEntry):
     """
 
     LOCATION = "/format/sctp/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSctpParam(ValueEntry):
@@ -1538,6 +1916,7 @@ class HttpSctpParam(ValueEntry):
     """
 
     LOCATION = "/format/sctp/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpIpTagHeader(ValueEntry):
@@ -1552,6 +1931,7 @@ class HttpIpTagHeader(ValueEntry):
     """
 
     LOCATION = "/format/iptag/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpIpTagParam(ValueEntry):
@@ -1566,3 +1946,4 @@ class HttpIpTagParam(ValueEntry):
     """
 
     LOCATION = "/format/iptag/params"
+    ROOT = Root.PANORAMA_VSYS
