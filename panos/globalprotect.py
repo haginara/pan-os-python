@@ -27,8 +27,20 @@ from panos.base import VersionedPanObject, VersionedParamPath
 logger = getlogger(__name__)
 
 class GlobalProtectGateway(VersionedPanObject):
-    """GlobalProtectGateway for a Firewall
+    """GlobalProtectGateway for a Firewall object.
+
+    Note: This is valid for PAN-OS x.x+.
+
+    Args:
+        name (string): The name
+        ssl_tls_service_profile (string): 
+        tunnel_mode (bool): Tunnel mode
+        remote_user_tunnel (string): Remote user tunnel
+        roles (list): Roles
+        remote_user_tunnel_configs (list): Remote User tunnel configurations
     """
+
+
     ROOT = Root.VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
@@ -72,6 +84,13 @@ class GlobalProtectGateway(VersionedPanObject):
 
 
 class Roles(VersionedPanObject):
+    """Roles object
+    Note:
+
+    Args:
+    """
+
+
     ROOT = Root.VSYS
     NAME = 'Roles'
     SUFFIX = ENTRY
@@ -106,6 +125,13 @@ class Roles(VersionedPanObject):
 
 
 class ClientAuth(VersionedPanObject):
+    """Roles object
+    Note:
+
+    Args:
+    """
+
+
     ROOT = Root.VSYS
     NAME = 'ClientAuth'
     SUFFIX = ENTRY
@@ -128,6 +154,13 @@ class ClientAuth(VersionedPanObject):
 
 
 class RemoteUserTunnelConfig(VersionedPanObject):
+    """Roles object
+    Note:
+
+    Args:
+    """
+
+
     ROOT = Root.VSYS
     NAME = 'RemoteUserTunnelConfig'
     SUFFIX = ENTRY
@@ -194,7 +227,12 @@ class RemoteUserTunnelConfig(VersionedPanObject):
 
 class GlobalProtectPortal(VersionedPanObject):
     """ GlobalProtectPortal for a Firewall
+    Note:
+
+    Args:
     """
+
+    
     ROOT = Root.VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
