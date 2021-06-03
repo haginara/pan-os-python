@@ -106,7 +106,7 @@ def main():
 
     if args.action == "login":
         logging.debug("Login user %s at IP %s" % (args.user, args.ip))
-        device.userid.login(args.user, args.ip)
+        device.userid.login(args.user, args.ip, timeout=12000) # minutes,
     elif args.action == "logout":
         logging.debug("Logout user %s at IP %s" % (args.user, args.ip))
         device.userid.logout(args.user, args.ip)
