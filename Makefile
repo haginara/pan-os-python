@@ -6,6 +6,9 @@ help:
 	@echo "clean-pyc - remove Python file artifacts"
 	@echo "clean-test - remove test and coverage artifacts"
 	@echo "lint - check style with flake8"
+	@echo "bandit - check security with bandit"
+	@echo "format - reformat code with black and isort"
+	@echo "check-format - check code format/style with black and isort"
 	@echo "test - run tests quickly with the default Python"
 	@echo "test-all - run tests on every Python version with tox"
 	@echo "coverage - check code coverage quickly with the default Python"
@@ -38,17 +41,17 @@ clean-test:
 	rm -fr .pytest_cache
 
 lint:
-	flake8 pandevice tests
+	flake8 panos tests
 
 bandit:
 	bandit -r --ini .bandit
 
 format:
-	isort --recursive --atomic pandevice
+	isort --recursive --atomic panos
 	black .
 
 check-format:
-	isort --recursive --atomic --check-only pandevice
+	isort --recursive --atomic --check-only panos
 	black --check .
 
 test:
@@ -58,7 +61,7 @@ test-all:
 	tox
 
 coverage:
-	pytest --cov=pandevice
+	pytest --cov=panos
 
 docs: clean-docs
 	$(MAKE) -C docs html

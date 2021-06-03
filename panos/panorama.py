@@ -23,12 +23,12 @@ from copy import deepcopy
 
 import pan.commit
 
-import pandevice
-import pandevice.errors as err
-from pandevice import base, firewall, getlogger, policies, yesno
-from pandevice.base import ENTRY, MEMBER, PanObject, Root
-from pandevice.base import VarPath as Var
-from pandevice.base import VersionedPanObject, VersionedParamPath
+import panos
+import panos.errors as err
+from panos import base, firewall, getlogger, policies, yesno
+from panos.base import ENTRY, MEMBER, PanObject, Root
+from panos.base import VarPath as Var
+from panos.base import VersionedPanObject, VersionedParamPath
 
 logger = getlogger(__name__)
 
@@ -36,10 +36,10 @@ logger = getlogger(__name__)
 class DeviceGroup(VersionedPanObject):
     """Panorama Device-group
 
-    This class and the :class:`pandevice.panorama.Panorama` classes are the only objects that can
-    have a :class:`pandevice.firewall.Firewall` child object. In addition to a Firewall, a
-    DeviceGroup can have the same children objects as a :class:`pandevice.firewall.Firewall`
-    or :class:`pandevice.device.Vsys`.
+    This class and the :class:`panos.panorama.Panorama` classes are the only objects that can
+    have a :class:`panos.firewall.Firewall` child object. In addition to a Firewall, a
+    DeviceGroup can have the same children objects as a :class:`panos.firewall.Firewall`
+    or :class:`panos.device.Vsys`.
 
     See also :ref:`classtree`
 
@@ -65,6 +65,8 @@ class DeviceGroup(VersionedPanObject):
         "objects.SecurityProfileGroup",
         "objects.CustomUrlCategory",
         "objects.LogForwardingProfile",
+        "objects.Region",
+        "objects.Edl",
         "policies.PreRulebase",
         "policies.PostRulebase",
     )
@@ -80,6 +82,9 @@ class DeviceGroup(VersionedPanObject):
 
         self._params = tuple(params)
 
+    def _setup_opstate(self):
+        self.opstate = DeviceGroupOpState(self)
+
     @property
     def vsys(self):
         return self.name
@@ -89,6 +94,68 @@ class DeviceGroup(VersionedPanObject):
 
     def xpath_vsys(self):
         return self.xpath()
+
+    def _setup_opstate(self):
+        self.opstate = DeviceGroupOpState(self)
+
+
+class DeviceGroupOpState(object):
+    """Operational state handling for device group classes."""
+
+    def __init__(self, obj):
+        self.dg_hierarchy = DeviceGroupHierarchy(obj)
+
+
+class DeviceGroupHierarchy(object):
+    """Operational state handling for device group hierarchy.
+
+    Args:
+        parent (str): This device group's parent.
+
+    """
+
+    def __init__(self, obj):
+        self.obj = obj
+        self.parent = None
+
+    def refresh(self):
+        """Refresh the ``parent`` from the state."""
+
+        dev = self.obj.panorama()
+        state = dev.opstate.dg_hierarchy.fetch()
+        self.parent = state[self.obj.uid]
+
+    def update(self):
+        """Change this device group's hierarchical parent.
+
+        **Modifies the live device**
+
+        This operation results in a job being submitted to the backend, which
+        this function will block until the move is completed.  The return value of
+        this function is what is returned from
+        :meth:`panos.base.PanDevice.syncjob()`.
+
+        Returns:
+            dict: Job result
+
+        """
+        dev = self.obj.panorama()
+        logger.debug(
+            '{0}: update hierarchical parent for "{1}": {2}'.format(
+                dev.id, self.obj.uid, self.parent
+            )
+        )
+
+        e = ET.Element("request")
+        em = ET.SubElement(e, "move-dg")
+        eme = ET.SubElement(em, "entry", {"name": self.obj.name})
+
+        if self.parent is not None:
+            ET.SubElement(eme, "new-parent-dg").text = self.parent
+
+        cmd = ET.tostring(e, encoding="utf-8")
+        resp = dev.op(cmd, cmd_xml=False)
+        return dev.syncjob(resp)
 
 
 class Template(VersionedPanObject):
@@ -315,6 +382,7 @@ class Panorama(base.PanDevice):
         "device.PasswordProfile",
         "device.SnmpServerProfile",
         "device.EmailServerProfile",
+        "device.LdapServerProfile",
         "device.SyslogServerProfile",
         "device.HttpServerProfile",
         "firewall.Firewall",
@@ -394,6 +462,8 @@ class Panorama(base.PanDevice):
     ):
         """Trigger a commit-all (commit to devices) on Panorama
 
+        NOTE:  Use the new panorama.PanoramaCommitAll with commit() instead.
+
         Args:
             sync (bool): Block until the Panorama commit is finished (Default: False)
             sync_all (bool): Block until every Firewall commit is finished, requires sync=True (Default: False)
@@ -465,7 +535,7 @@ class Panorama(base.PanDevice):
             devices (list): Limit refresh to these serial numbers
             only_connected (bool): Ignore devices that are not 'connected' to Panorama (Default: False)
             expand_vsys (bool): Instantiate a Firewall object for every Vsys (Default: True)
-            include_device_groups (bool): Instantiate :class:`pandevice.panorama.DeviceGroup` objects with Firewall
+            include_device_groups (bool): Instantiate :class:`panos.panorama.DeviceGroup` objects with Firewall
                 objects added to them.
             add (bool): Add the new tree of instantiated DeviceGroup and Firewall objects to the Panorama config tree.
                 Warning: This removes all current DeviceGroup and Firewall objects from the configuration tree, and all
@@ -597,7 +667,7 @@ class Panorama(base.PanDevice):
                         "entry/devices/entry[@name='%s']" % fw_entry.get("name")
                     )
                     if fw_entry_op is not None:
-                        pandevice.xml_combine(fw_entry, fw_entry_op)
+                        panos.xml_combine(fw_entry, fw_entry_op)
 
         dg = DeviceGroup()
         dg.parent = self
@@ -747,3 +817,322 @@ class Panorama(base.PanDevice):
             )
 
         return ans
+
+    def _setup_opstate(self):
+        self.opstate = PanoramaOpState(self)
+
+
+class PanoramaOpState(object):
+    """Panorama OP state handling."""
+
+    def __init__(self, obj):
+        self.dg_hierarchy = PanoramaDeviceGroupHierarchy(obj)
+
+
+class PanoramaDeviceGroupHierarchy(object):
+    """Operational state handling for device group hierarchy."""
+
+    def __init__(self, obj):
+        self.obj = obj
+        self.parent = None
+
+    def fetch(self):
+        """Returns a dict of device groups and their parents.
+
+        Keys in the dict are the device group's name, while the value is the
+        name of that device group's parent.  Top level device groups will have
+        a parent of ``None``.
+
+        Returns:
+            dict
+
+        """
+
+        resp = self.obj.op("show dg-hierarchy")
+        data = resp.find("./result/dg-hierarchy")
+
+        ans = {}
+        nodes = [(None, x) for x in data.findall("./dg")]
+        for parent, elm in iter(nodes):
+            ans[elm.attrib["name"]] = parent
+            nodes.extend((elm.attrib["name"], x) for x in elm.findall("./dg"))
+
+        return ans
+
+
+class PanoramaCommit(object):
+    """Normalization of a Panorama commit.
+
+    This performs a commit to Panorama.  Changes must first be committed to Panorama before
+    they can be pushed out elsewhere, such as to device groups or log collectors.
+
+    Instances of this class can be passed in to ``Panorama.commit()`` (inherited from
+    :meth:`panos.base.PanDevice.commit()`) as the ``cmd`` parameter.
+
+    Args:
+        description (str): The commit message.
+        admins (list): (PAN-OS 8.0+) List of admins whose changes are to be committed.
+        device_groups (list): List of device groups to save changes for.
+        templates (list): List of templates to save changes for.
+        template_stacks (list): List of template stacks to save changes for.
+        wildfire_appliances (list): List of Wildfire appliances to save changes for.
+        wildfire_clusters (list): List of Wildfire clusters to save changes for.
+        log_collectors (list): List of log collectors to save changes for.
+        log_collector_groups (list): List of log collector groups to save changes for.
+        exclude_device_and_network (bool): Set to True to exclude device and network changes.
+        exclude_shared_objects (bool): Set to True to exclude shared objects changes.
+        force (bool): Set to True to force a commit even if one is not needed.
+
+    """
+
+    def __init__(
+        self,
+        description=None,
+        admins=None,
+        device_groups=None,
+        templates=None,
+        template_stacks=None,
+        wildfire_appliances=None,
+        wildfire_clusters=None,
+        log_collectors=None,
+        log_collector_groups=None,
+        exclude_device_and_network=False,
+        exclude_shared_objects=False,
+        force=False,
+    ):
+        largs = [
+            "admins",
+            "device_groups",
+            "templates",
+            "template_stacks",
+            "wildfire_appliances",
+            "wildfire_clusters",
+            "log_collectors",
+            "log_collector_groups",
+        ]
+        for x in largs:
+            if locals()[x] is not None and not isinstance(locals()[x], list):
+                raise ValueError("{0} must be a list".format(x))
+        self.description = description
+        self.admins = admins
+        self.device_groups = device_groups
+        self.templates = templates
+        self.template_stacks = template_stacks
+        self.wildfire_appliances = wildfire_appliances
+        self.wildfire_clusters = wildfire_clusters
+        self.log_collectors = log_collectors
+        self.log_collector_groups = log_collector_groups
+        self.exclude_device_and_network = exclude_device_and_network
+        self.exclude_shared_objects = exclude_shared_objects
+        self.force = force
+
+    @property
+    def commit_action(self):
+        return None
+
+    def is_partial(self):
+        pp_list = [
+            self.admins,
+            self.device_groups,
+            self.templates,
+            self.template_stacks,
+            self.wildfire_appliances,
+            self.wildfire_clusters,
+            self.log_collectors,
+            self.log_collector_groups,
+            self.exclude_device_and_network,
+            self.exclude_shared_objects,
+            self.force,
+        ]
+
+        return any(x for x in pp_list)
+
+    def element_str(self):
+        return ET.tostring(self.element(), encoding="utf-8")
+
+    def element(self):
+        """Returns an xml representation of the commit requested.
+
+        Returns:
+            xml.etree.ElementTree
+        """
+        root = ET.Element("commit")
+
+        if self.description:
+            ET.SubElement(root, "description").text = self.description
+
+        if self.is_partial():
+            partial = ET.Element("partial")
+            mlist = [
+                ("admin", self.admins),
+                ("device-group", self.device_groups),
+                ("template", self.templates),
+                ("template-stack", self.template_stacks),
+                ("wildfire-appliance", self.wildfire_appliances),
+                ("wildfire-appliance-cluster", self.wildfire_clusters),
+                ("log-collector", self.log_collectors),
+                ("log-collector-group", self.log_collector_groups),
+            ]
+            for loc, vals in mlist:
+                if vals:
+                    e = ET.SubElement(partial, loc)
+                    for name in vals:
+                        ET.SubElement(e, "member").text = name
+
+            if self.exclude_device_and_network:
+                ET.SubElement(partial, "device-and-network").text = "excluded"
+            if self.exclude_shared_objects:
+                ET.SubElement(partial, "shared-object").text = "excluded"
+
+            if self.force:
+                fe = ET.SubElement(root, "force")
+                fe.append(partial)
+            else:
+                root.append(partial)
+
+        return root
+
+
+class PanoramaCommitAll(object):
+    """Normalization of a Panorama commit all.
+
+    This performs a commit-all in Panorama, pushing config out to the specified
+    location.
+
+    Instances of this class can be passed in to ``Panorama.commit()`` (inherited from
+    :meth:`panos.base.PanDevice.commit()`) as the ``cmd`` parameter.
+
+    Args:
+        style (str): The type of commit-all to perform:
+                * device group
+                * template
+                * template stack
+                * log collector group
+                * wildfire appliance
+                * wildfire cluster
+        name (str): The name of the location to push the config to (e.g. - name
+            of the device group, name of the template, etc).
+        description (str): The commit message.
+        include_template (bool): (For `device group` style commits) Set to True to include
+            template changes.
+        force_template_values (bool): (For `device group`, `template`, or `template stack`
+            style commits) Set to True to force template values.
+        devices (list): (For `device group`, `template`, or `template stack` style
+            commits) Specific devices to commit to.
+    """
+
+    STYLE_DEVICE_GROUP = "device group"
+    STYLE_TEMPLATE = "template"
+    STYLE_TEMPLATE_STACK = "template stack"
+    STYLE_LOG_COLLECTOR_GROUP = "log collector group"
+    STYLE_WILDFIRE_APPLIANCE = "wildfire appliance"
+    STYLE_WILDFIRE_CLUSTER = "wildfire cluster"
+
+    def __init__(
+        self,
+        style,
+        name,
+        description=None,
+        include_template=None,
+        force_template_values=None,
+        devices=None,
+    ):
+        if style and style not in (
+            self.STYLE_DEVICE_GROUP,
+            self.STYLE_TEMPLATE,
+            self.STYLE_TEMPLATE_STACK,
+            self.STYLE_LOG_COLLECTOR_GROUP,
+            self.STYLE_WILDFIRE_APPLIANCE,
+            self.STYLE_WILDFIRE_CLUSTER,
+        ):
+            raise ValueError("Invalid style {0}".format(style))
+        if devices and not isinstance(devices, list):
+            raise ValueError("devices must be a list")
+
+        self.style = style
+        self.name = name
+        self.description = description
+        self.include_template = include_template
+        self.force_template_values = force_template_values
+        self.devices = devices
+
+    @property
+    def commit_action(self):
+        return "all"
+
+    def element_str(self):
+        return ET.tostring(self.element(), encoding="utf-8")
+
+    def element(self):
+        """Returns an xml representation of the commit all.
+
+        Returns:
+            xml.etree.ElementTree
+        """
+        root = ET.Element("commit-all")
+
+        body = None
+        if self.style == self.STYLE_DEVICE_GROUP:
+            body = ET.Element("shared-policy")
+            dgInfo = ET.SubElement(body, "device-group")
+            dge = ET.SubElement(dgInfo, "entry", {"name": self.name})
+            if self.devices:
+                de = ET.SubElement(dge, "devices")
+                for x in self.devices:
+                    ET.SubElement(de, "entry", {"name": x})
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+            if self.include_template:
+                ET.SubElement(body, "include-template").text = "yes"
+            elif self.include_template is False:
+                ET.SubElement(body, "include-template").text = "no"
+            if self.force_template_values:
+                ET.SubElement(body, "force-template-values").text = "yes"
+            elif self.force_template_values is False:
+                ET.SubElement(body, "force-template-values").text = "no"
+        elif self.style == self.STYLE_TEMPLATE:
+            body = ET.Element("template")
+            ET.SubElement(body, "name").text = self.name
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+            if self.force_template_values:
+                ET.SubElement(body, "force-template-values").text = "yes"
+            elif self.force_template_values is False:
+                ET.SubElement(body, "force-template-values").text = "no"
+            if self.devices:
+                de = ET.SubElement(body, "device")
+                for x in self.devices:
+                    ET.SubElement(de, "member").text = x
+        elif self.style == self.STYLE_TEMPLATE_STACK:
+            body = ET.Element("template-stack")
+            ET.SubElement(body, "name").text = self.name
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+            if self.force_template_values:
+                ET.SubElement(body, "force-template-values").text = "yes"
+            elif self.force_template_values is False:
+                ET.SubElement(body, "force-template-values").text = "no"
+            if self.devices:
+                de = ET.SubElement(body, "device")
+                for x in self.devices:
+                    ET.SubElement(de, "member").text = x
+        elif self.style == self.STYLE_LOG_COLLECTOR_GROUP:
+            body = ET.Element("log-collector-config")
+            ET.SubElement(body, "log-collector-group").text = self.name
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+        elif self.style == self.STYLE_WILDFIRE_APPLIANCE:
+            body = ET.Element("wildfire-appliance-config")
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+            ET.SubElement(body, "wildfire-appliance").text = self.name
+        elif self.style == self.STYLE_WILDFIRE_CLUSTER:
+            body = ET.Element("wildfire-appliance-config")
+            if self.description:
+                ET.SubElement(body, "description").text = self.description
+            ET.SubElement(body, "wildfire-appliance-cluster").text = self.name
+
+        if body is not None:
+            root.append(body)
+
+        return root
