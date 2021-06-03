@@ -114,6 +114,7 @@ class Vsys(VersionedPanObject):
         "device.VsysResources",
         "device.SnmpServerProfile",
         "device.EmailServerProfile",
+        "device.LdapServerProfile",
         "device.SyslogServerProfile",
         "device.HttpServerProfile",
         "objects.AddressObject",
@@ -129,6 +130,7 @@ class Vsys(VersionedPanObject):
         "objects.LogForwardingProfile",
         "objects.DynamicUserGroup",
         "objects.Region",
+        "objects.Edl",
         "policies.Rulebase",
         "network.EthernetInterface",
         "network.AggregateInterface",
@@ -867,7 +869,7 @@ class SnmpServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
         "device.SnmpV2cServer",
@@ -900,7 +902,7 @@ class SnmpV2cServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -929,7 +931,7 @@ class SnmpV3Server(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -976,7 +978,7 @@ class EmailServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = ("device.EmailServer",)
 
@@ -1033,7 +1035,7 @@ class EmailServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -1048,6 +1050,110 @@ class EmailServer(VersionedPanObject):
         params.append(VersionedParamPath("to", path="to"))
         params.append(VersionedParamPath("also_to", path="and-also-to"))
         params.append(VersionedParamPath("email_gateway", path="gateway"))
+
+        self._params = tuple(params)
+
+
+class LdapServerProfile(VersionedPanObject):
+    """An ldap server profile.
+
+    Note: Valid for PAN-OS 7.0+.
+
+    Args:
+        name (str): The name
+        ldap_type (str): Ldap profile type. Valid values are "other" (default),
+            "active-directory", "e-directory", or "sun".
+        base (str): Base DN
+        bind_dn (str): Bind DN
+        bind_password (str): Bind password
+        bind_timelimit (int): Bind timeout
+        timelimit (int): Search timeout
+        retry_interval (int): Retry interval
+        ssl (bool): Require ssl/ttls secured connection
+        verify_server_certificate (bool): Verify server certificate for ssl sessions
+        disabled (bool): Disabled or not
+
+    """
+
+    ROOT = Root.PANORAMA_VSYS
+    SUFFIX = ENTRY
+    CHILDTYPES = ("device.LdapServer",)
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/server-profile/ldap")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath(
+                "ldap_type",
+                default="other",
+                path="ldap-type",
+                values=["other", "active-directory", "e-directory", "sun"],
+            )
+        )
+        params.append(VersionedParamPath("base", path="base"))
+        params.append(VersionedParamPath("bind_dn", path="bind-dn"))
+        params.append(
+            VersionedParamPath(
+                "bind_password", vartype="encrypted", path="bind-password"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "bind_timelimit", default="30", vartype="int", path="bind-timelimit"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "timelimit", default="30", vartype="int", path="timelimit"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "retry_interval", default="60", vartype="int", path="retry-interval"
+            )
+        )
+        params.append(VersionedParamPath("ssl", vartype="yesno", path="ssl"))
+        params.append(
+            VersionedParamPath(
+                "verify_server_certificate",
+                condition={"ssl": True},
+                vartype="yesno",
+                path="verify-server-certificate",
+            )
+        )
+        params.append(
+            VersionedParamPath("disabled", vartype="yesno", path="disabled",),
+        )
+
+        self._params = tuple(params)
+
+
+class LdapServer(VersionedPanObject):
+    """An ldap server in a ldap server profile
+
+    Args:
+        name (str): The name
+        address (str): IP address or FQDN of ldap server to use
+        port (str): port number
+
+    """
+
+    ROOT = Root.PANORAMA_VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/server")
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath("address", path="address"))
+        params.append(VersionedParamPath("port", vartype="int", path="port"))
 
         self._params = tuple(params)
 
@@ -1076,7 +1182,7 @@ class SyslogServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = ("device.SyslogServer",)
 
@@ -1136,7 +1242,7 @@ class SyslogServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -1227,7 +1333,7 @@ class HttpServerProfile(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
     CHILDTYPES = (
         "device.HttpServer",
@@ -1387,7 +1493,7 @@ class HttpServer(VersionedPanObject):
 
     """
 
-    ROOT = Root.VSYS
+    ROOT = Root.PANORAMA_VSYS
     SUFFIX = ENTRY
 
     def _setup(self):
@@ -1435,6 +1541,7 @@ class HttpConfigHeader(ValueEntry):
     """
 
     LOCATION = "/format/config/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpConfigParam(ValueEntry):
@@ -1449,6 +1556,7 @@ class HttpConfigParam(ValueEntry):
     """
 
     LOCATION = "/format/config/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSystemHeader(ValueEntry):
@@ -1463,6 +1571,7 @@ class HttpSystemHeader(ValueEntry):
     """
 
     LOCATION = "/format/system/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSystemParam(ValueEntry):
@@ -1477,6 +1586,7 @@ class HttpSystemParam(ValueEntry):
     """
 
     LOCATION = "/format/system/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpThreatHeader(ValueEntry):
@@ -1491,6 +1601,7 @@ class HttpThreatHeader(ValueEntry):
     """
 
     LOCATION = "/format/threat/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpThreatParam(ValueEntry):
@@ -1505,6 +1616,7 @@ class HttpThreatParam(ValueEntry):
     """
 
     LOCATION = "/format/threat/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTrafficHeader(ValueEntry):
@@ -1519,6 +1631,7 @@ class HttpTrafficHeader(ValueEntry):
     """
 
     LOCATION = "/format/traffic/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTrafficParam(ValueEntry):
@@ -1533,6 +1646,7 @@ class HttpTrafficParam(ValueEntry):
     """
 
     LOCATION = "/format/traffic/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpHipMatchHeader(ValueEntry):
@@ -1547,6 +1661,7 @@ class HttpHipMatchHeader(ValueEntry):
     """
 
     LOCATION = "/format/hip-match/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpHipMatchParam(ValueEntry):
@@ -1561,6 +1676,7 @@ class HttpHipMatchParam(ValueEntry):
     """
 
     LOCATION = "/format/hip-match/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUrlHeader(ValueEntry):
@@ -1575,6 +1691,7 @@ class HttpUrlHeader(ValueEntry):
     """
 
     LOCATION = "/format/url/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUrlParam(ValueEntry):
@@ -1589,6 +1706,7 @@ class HttpUrlParam(ValueEntry):
     """
 
     LOCATION = "/format/url/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpDataHeader(ValueEntry):
@@ -1603,6 +1721,7 @@ class HttpDataHeader(ValueEntry):
     """
 
     LOCATION = "/format/data/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpDataParam(ValueEntry):
@@ -1617,6 +1736,7 @@ class HttpDataParam(ValueEntry):
     """
 
     LOCATION = "/format/data/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpWildfireHeader(ValueEntry):
@@ -1631,6 +1751,7 @@ class HttpWildfireHeader(ValueEntry):
     """
 
     LOCATION = "/format/wildfire/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpWildfireParam(ValueEntry):
@@ -1645,6 +1766,7 @@ class HttpWildfireParam(ValueEntry):
     """
 
     LOCATION = "/format/wildfire/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTunnelHeader(ValueEntry):
@@ -1659,6 +1781,7 @@ class HttpTunnelHeader(ValueEntry):
     """
 
     LOCATION = "/format/tunnel/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpTunnelParam(ValueEntry):
@@ -1673,6 +1796,7 @@ class HttpTunnelParam(ValueEntry):
     """
 
     LOCATION = "/format/tunnel/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUserIdHeader(ValueEntry):
@@ -1687,6 +1811,7 @@ class HttpUserIdHeader(ValueEntry):
     """
 
     LOCATION = "/format/userid/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpUserIdParam(ValueEntry):
@@ -1701,6 +1826,7 @@ class HttpUserIdParam(ValueEntry):
     """
 
     LOCATION = "/format/userid/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpGtpHeader(ValueEntry):
@@ -1715,6 +1841,7 @@ class HttpGtpHeader(ValueEntry):
     """
 
     LOCATION = "/format/gtp/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpGtpParam(ValueEntry):
@@ -1729,6 +1856,7 @@ class HttpGtpParam(ValueEntry):
     """
 
     LOCATION = "/format/gtp/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpAuthHeader(ValueEntry):
@@ -1743,6 +1871,7 @@ class HttpAuthHeader(ValueEntry):
     """
 
     LOCATION = "/format/auth/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpAuthParam(ValueEntry):
@@ -1757,6 +1886,7 @@ class HttpAuthParam(ValueEntry):
     """
 
     LOCATION = "/format/auth/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSctpHeader(ValueEntry):
@@ -1771,6 +1901,7 @@ class HttpSctpHeader(ValueEntry):
     """
 
     LOCATION = "/format/sctp/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpSctpParam(ValueEntry):
@@ -1785,6 +1916,7 @@ class HttpSctpParam(ValueEntry):
     """
 
     LOCATION = "/format/sctp/params"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpIpTagHeader(ValueEntry):
@@ -1799,6 +1931,7 @@ class HttpIpTagHeader(ValueEntry):
     """
 
     LOCATION = "/format/iptag/headers"
+    ROOT = Root.PANORAMA_VSYS
 
 
 class HttpIpTagParam(ValueEntry):
@@ -1812,47 +1945,5 @@ class HttpIpTagParam(ValueEntry):
 
     """
 
-    LOCATION = '/format/iptag/params'
-
-
-class LocalUser(VersionedPanObject):
-    """User object
-
-    Args:
-        password_hash (encrypted str): The encrypted password
-        disabled (yesno): Disable the user account
-
-    """
-    ROOT = Root.VSYS
-    SUFFIX = ENTRY
-
-    def _setup(self):
-        # xpaths
-        self._xpaths.add_profile(value='/local-user-database/user')
-        # params
-        params = []
-
-        params.append(VersionedParamPath(
-            'password_hash', vartype='encrypted_str', path='phash'))
-        params.append(VersionedParamPath(
-            'disabled', vartype='yesno', default=False, path='disabled'))
-        self._params = tuple(params)
-
-class LocalGroup(VersionedPanObject):
-    """Group object
-
-    Args:
-        user (member): Users
-    """
-    ROOT = Root.VSYS
-    SUFFIX = ENTRY
-
-    def _setup(self):
-        # xpaths
-        self._xpaths.add_profile(value='/local-user-database/user-group')
-        # params
-        params = []
-
-        params.append(VersionedParamPath(
-            'user', vartype='member', path='user'))
-        self._params = tuple(params)
+    LOCATION = "/format/iptag/params"
+    ROOT = Root.PANORAMA_VSYS
