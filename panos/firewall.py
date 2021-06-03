@@ -23,10 +23,10 @@ import re
 import xml.etree.ElementTree as ET
 from decimal import Decimal
 
-import pandevice.errors as err
-from pandevice import device, getlogger, yesno
-from pandevice.base import ENTRY, PanDevice, Root
-from pandevice.base import VarPath as Var
+import panos.errors as err
+from panos import device, getlogger, yesno
+from panos.base import ENTRY, PanDevice, Root
+from panos.base import VarPath as Var
 
 logger = getlogger(__name__)
 
@@ -57,6 +57,8 @@ class Firewall(PanDevice):
     NAME = "serial"
     DEFAULT_VSYS = "vsys1"
     CHILDTYPES = (
+        "device.AuthenticationProfile",
+        "device.AuthenticationSequence",
         "device.Vsys",
         "device.VsysResources",
         "device.SystemSettings",
@@ -65,6 +67,7 @@ class Firewall(PanDevice):
         "device.Telemetry",
         "device.SnmpServerProfile",
         "device.EmailServerProfile",
+        "device.LdapServerProfile",
         "device.SyslogServerProfile",
         "device.HttpServerProfile",
         "ha.HighAvailability",
@@ -80,6 +83,8 @@ class Firewall(PanDevice):
         "objects.CustomUrlCategory",
         "objects.LogForwardingProfile",
         "objects.DynamicUserGroup",
+        "objects.Region",
+        "objects.Edl",
         "policies.Rulebase",
         "network.EthernetInterface",
         "network.AggregateInterface",
@@ -238,6 +243,7 @@ class Firewall(PanDevice):
 
         """
         super(Firewall, self)._save_system_info(system_info)
+        self.content_version = system_info["system"]["app-version"]
         self.multi_vsys = system_info["system"]["multi-vsys"] == "on"
 
     def element(self):
@@ -340,13 +346,10 @@ class Firewall(PanDevice):
             )
         op_vars = (
             Var("serial"),
-            Var("ip-address", "management_ip"),
-            Var("sw-version", "version"),
             Var("multi-vsys", vartype="bool"),
             Var("vsys_id", "vsys", default="vsys1"),
             Var("vsys_name"),
             Var("ha/state/peer/serial", "serial_ha_peer"),
-            Var("connected", "state.connected"),
         )
         if len(xml[0]) > 1:
             # This is a 'show devices' op command
@@ -359,11 +362,15 @@ class Firewall(PanDevice):
                 system = fw.find_or_create(None, device.SystemSettings)
                 system.hostname = entry.findtext("hostname")
                 system.ip_address = entry.findtext("ip-address")
+                if entry.findtext("ipv6-address") != "unknown":
+                    system.ipv6_address = entry.findtext("ipv6-address")
                 # Add state
                 fw.state.connected = yesno(entry.findtext("connected"))
                 fw.state.unsupported_version = yesno(
                     entry.findtext("unsupported-version")
                 )
+                fw._set_version_and_version_info(entry.findtext("sw-version"))
+                fw.content_version = entry.findtext("app-version")
         else:
             # This is a config command
             # For each vsys, instantiate a new firewall
@@ -385,7 +392,7 @@ class Firewall(PanDevice):
         result = self.xapi.xml_root()
         if self._version_info >= (9, 0, 0):
             regex = re.compile(
-                r"load average: ([\d\.]+).*? ([\d\.]+) id,.*KiB Mem : (\d+) total,.*? (\d+) free",
+                r"load average: ([\d\.]+).*? ([\d\.]+) id,.*KiB Mem :\s+(\d+) total,.*? (\d+) free",
                 re.DOTALL,
             )
         else:
@@ -427,9 +434,9 @@ class Firewall(PanDevice):
             refresh_vsys (bool): Refresh all vsys objects' parameters before doing the reorganization or not.  This is assumed True if create_vsys_objects is True.
 
         """
-        from pandevice import network
+        from panos import network
 
-        # Mapping of device.Vsys params to pandevice classes.
+        # Mapping of device.Vsys params to pan-os-python classes.
         mapping = {
             "interface": network.Interface,
             "vlans": network.Vlan,
@@ -501,3 +508,88 @@ class FirewallState(object):
             raise err.PanDeviceError(
                 "Unknown shared policy status: %s" % str(sync_status)
             )
+
+
+class FirewallCommit(object):
+    """Normalization of a firewall commit.
+
+    Instances of this class can be passed in to ``Firewall.commit()`` (inherited from
+    :meth:`panos.base.PanDevice.commit()`) as the ``cmd`` parameter.
+
+    Args:
+        description (str): The commit message.
+        admins (list): (PAN-OS 8.0+) List of admins whose changes are to be committed.
+        exclude_device_and_network (bool): Set to True to exclude device and network changes.
+        exclude_shared_objects (bool): Set to True to exclude shared objects changes.
+        exclude_policy_and_objects (bool): Set to True to exclude policy and objects changes.
+        force (bool): Set to True to force a commit even if one is not needed.
+
+    """
+
+    def __init__(
+        self,
+        description=None,
+        admins=None,
+        exclude_device_and_network=False,
+        exclude_shared_objects=False,
+        exclude_policy_and_objects=False,
+        force=False,
+    ):
+        self.description = description
+        self.admins = admins
+        if admins and not isinstance(admins, list):
+            raise ValueError("admins must be a list")
+        self.exclude_device_and_network = exclude_device_and_network
+        self.exclude_shared_objects = exclude_shared_objects
+        self.exclude_policy_and_objects = exclude_policy_and_objects
+        self.force = force
+
+    @property
+    def commit_action(self):
+        return None
+
+    def is_partial(self):
+        pp_list = [
+            self.admins,
+            self.exclude_device_and_network,
+            self.exclude_shared_objects,
+            self.exclude_policy_and_objects,
+            self.force,
+        ]
+
+        return any(x for x in pp_list)
+
+    def element_str(self):
+        return ET.tostring(self.element(), encoding="utf-8")
+
+    def element(self):
+        """Returns an xml representation of the commit requested.
+
+        Returns:
+            xml.etree.ElementTree
+        """
+        root = ET.Element("commit")
+
+        if self.description:
+            ET.SubElement(root, "description").text = self.description
+
+        if self.is_partial():
+            partial = ET.Element("partial")
+            if self.admins:
+                e = ET.SubElement(partial, "admin")
+                for name in self.admins:
+                    ET.SubElement(e, "member").text = name
+            if self.exclude_device_and_network:
+                ET.SubElement(partial, "device-and-network").text = "excluded"
+            if self.exclude_shared_objects:
+                ET.SubElement(partial, "shared-object").text = "excluded"
+            if self.exclude_policy_and_objects:
+                ET.SubElement(partial, "policy-and-objects").text = "excluded"
+
+            if self.force:
+                fe = ET.SubElement(root, "force")
+                fe.append(partial)
+            else:
+                root.append(partial)
+
+        return root

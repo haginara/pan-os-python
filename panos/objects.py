@@ -21,12 +21,12 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 
-import pandevice
-import pandevice.errors as err
-from pandevice import getlogger
-from pandevice.base import ENTRY, MEMBER, PanObject, Root
-from pandevice.base import VarPath as Var
-from pandevice.base import VersionedPanObject, VersionedParamPath
+import panos
+import panos.errors as err
+from panos import getlogger
+from panos.base import ENTRY, MEMBER, PanObject, Root
+from panos.base import VarPath as Var
+from panos.base import VersionedPanObject, VersionedParamPath
 
 logger = getlogger(__name__)
 
@@ -40,6 +40,7 @@ class AddressObject(VersionedPanObject):
         type (str): Type of address:
                 * ip-netmask (default)
                 * ip-range
+                * ip-wildcard (added in PAN-OS 9.0)
                 * fqdn
         description (str): Description of this object
         tag (list): Administrative tags
@@ -61,7 +62,7 @@ class AddressObject(VersionedPanObject):
             VersionedParamPath(
                 "type",
                 default="ip-netmask",
-                values=["ip-netmask", "ip-range", "fqdn"],
+                values=["ip-netmask", "ip-range", "ip-wildcard", "fqdn"],
                 path="{type}",
             )
         )
@@ -109,7 +110,7 @@ class Tag(VersionedPanObject):
     Args:
         name (str): Name of the tag
         color (str): Color ID (eg. 'color1', 'color4', etc). You can
-            use :func:`~pandevice.objects.Tag.color_code` to generate the ID.
+            use :func:`~panos.objects.Tag.color_code` to generate the ID.
         comments (str): Comments
 
     """
@@ -131,7 +132,7 @@ class Tag(VersionedPanObject):
 
     @staticmethod
     def color_code(color_name):
-        """Returns the color code for a color
+        """Return the color code for a color
 
         Args:
             color_name (str): One of the following colors:
@@ -171,6 +172,32 @@ class Tag(VersionedPanObject):
             "black": 14,
             "gold": 15,
             "brown": 16,
+            "olive": 17,
+            # there is no color18
+            "maroon": 19,
+            "red-orange": 20,
+            "yellow-orange": 21,
+            "forest green": 22,
+            "turquoise blue": 23,
+            "azure blue": 24,
+            "cerulean blue": 25,
+            "midnight blue": 26,
+            "medium blue": 27,
+            "cobalt blue": 28,
+            "violet blue": 29,
+            "blue violet": 30,
+            "medium violet": 31,
+            "medium rose": 32,
+            "lavender": 33,
+            "orchid": 34,
+            "thistle": 35,
+            "peach": 36,
+            "salmon": 37,
+            "magenta": 38,
+            "red violet": 39,
+            "mahogany": 40,
+            "burnt sienna": 41,
+            "chestnut": 42,
         }
         if color_name not in colors:
             raise ValueError("Color '{0}' is not valid".format(color_name))
@@ -288,6 +315,9 @@ class ApplicationObject(VersionedPanObject):
     def _setup(self):
         # xpaths
         self._xpaths.add_profile(value="/application")
+        self._xpaths.add_profile(
+            value='//*[contains(local-name(), "application")]', parents=("Predefined",),
+        )
 
         # params
         params = []
@@ -554,6 +584,9 @@ class ApplicationContainer(VersionedPanObject):
     def _setup(self):
         # xpaths
         self._xpaths.add_profile(value="/application-container")
+        self._xpaths.add_profile(
+            value='//*[contains(local-name(), "application")]', parents=("Predefined",),
+        )
 
         # params
         params = []
@@ -637,6 +670,7 @@ class CustomUrlCategory(VersionedPanObject):
 
         params.append(VersionedParamPath("url_value", path="list", vartype="member"))
         params.append(VersionedParamPath("description", path="description"))
+        params.append(VersionedParamPath("type"))
 
         self._params = tuple(params)
 
@@ -1008,6 +1042,203 @@ class ScheduleObject(VersionedPanObject):
                 vartype="member",
                 condition={"type": "recurring", "recurrence": "weekly"},
             )
+        )
+
+        self._params = tuple(params)
+
+
+class Region(VersionedPanObject):
+    """Region.
+
+    Args:
+        name (str): Name of the region
+        address (list): List of IP networks
+        latitude (float): Latitude of the region
+        longitude (float): Longitude of the region
+
+    """
+
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/region")
+
+        # params
+        params = []
+
+        params.append(VersionedParamPath("address", path="address", vartype="member"))
+        params.append(
+            VersionedParamPath(
+                "latitude", path="geo-location/latitude", vartype="float"
+            )
+        )
+        params.append(
+            VersionedParamPath(
+                "longitude", path="geo-location/longitude", vartype="float"
+            )
+        )
+
+        self._params = tuple(params)
+
+
+class Edl(VersionedPanObject):
+    """External Dynamic List.
+
+    Args:
+        name (str): The name.
+        edl_type (str): The EDL type.
+        description (str): Description.
+        source (str): Source.
+        exceptions (list): (PAN-OS 8.0+) Exceptions.
+        certificate_profile (str): (PAN-OS 8.0+) Profile for authenticating client certificates.
+        username (str): (PAN-OS 8.0+) Username auth.
+        password (str): (PAN-OS 8.0+) Password auth.
+        expand_domain (bool): (PAN-OS 9.0+) Enable/disable expand domain (requires
+            `edl_type=domain`).
+        repeat (str): Retrieval interval.  Valid values are "five-minute", "hourly",
+            "daily", "weekly", or "monthly".
+        repeat_at (str): The time specification for the given repeat value.
+        repeat_day_of_week (str): For `repeat=daily`, the day of the week.
+        repeat_day_of_month (int): For `repeat=monthly`, the day of the month.
+
+    """
+
+    ROOT = Root.VSYS
+    SUFFIX = ENTRY
+
+    def _setup(self):
+        # xpaths
+        self._xpaths.add_profile(value="/external-list")
+
+        # params
+        params = []
+
+        params.append(
+            VersionedParamPath(
+                "edl_type", default="ip", path="type", values=("ip", "domain", "url"),
+            ),
+        )
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}",
+            values=("ip", "domain", "url", "predefined-ip"),
+        )
+        params[-1].add_profile(
+            "10.0.0",
+            path="type/{edl_type}",
+            values=("ip", "domain", "url", "predefined-ip", "predefined-url"),
+        )
+        params.append(VersionedParamPath("description", path="description",),)
+        params[-1].add_profile(
+            "8.0.0", path="type/{edl_type}/description",
+        )
+        params.append(VersionedParamPath("source", path="url",),)
+        params[-1].add_profile(
+            "8.0.0", path="type/{edl_type}/url",
+        )
+        params.append(VersionedParamPath("exceptions", exclude=True,),)
+        params[-1].add_profile(
+            "8.0.0", vartype="member", path="type/{edl_type}/exception-list",
+        )
+        params.append(VersionedParamPath("certificate_profile", exclude=True,))
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/certificate-profile",
+            condition={"edl_type": ["ip", "domain", "url"]},
+        )
+        params.append(VersionedParamPath("username", exclude=True,))
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/auth/username",
+            condition={"edl_type": ["ip", "domain", "url"]},
+        )
+        params.append(VersionedParamPath("password", exclude=True,))
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/auth/password",
+            vartype="encrypted",
+            condition={"edl_type": ["ip", "domain", "url"]},
+        )
+        params.append(VersionedParamPath("expand_domain", exclude=True,),)
+        params[-1].add_profile(
+            "9.0.0",
+            path="type/{edl_type}/expand-domain",
+            vartype="yesno",
+            condition={"edl_type": "domain"},
+        )
+        params.append(
+            VersionedParamPath(
+                "repeat",
+                path="recurring/{repeat}",
+                values=("five-minute", "hourly", "daily", "weekly", "monthly"),
+            ),
+        )
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/recurring/{repeat}",
+            values=("five-minute", "hourly", "daily", "weekly", "monthly"),
+            condition={"edl_type": ["ip", "domain", "url"]},
+        )
+        params.append(
+            VersionedParamPath(
+                "repeat_at",
+                path="recurring/{repeat}/at",
+                condition={"repeat": ["daily", "weekly", "monthly"]},
+            ),
+        )
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/recurring/{repeat}/at",
+            condition={
+                "edl_type": ["ip", "domain", "url"],
+                "repeat": ["daily", "weekly", "monthly"],
+            },
+        )
+        params.append(
+            VersionedParamPath(
+                "repeat_day_of_week",
+                path="recurring/{repeat}/day-of-week",
+                condition={"repeat": "weekly"},
+                values=(
+                    "sunday",
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                ),
+            ),
+        )
+        params[-1].add_profile(
+            "8.0.0",
+            path="type/{edl_type}/recurring/{repeat}/day-of-week",
+            values=(
+                "sunday",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+            ),
+            condition={"edl_type": ["ip", "domain", "url"], "repeat": "weekly",},
+        )
+        params.append(
+            VersionedParamPath(
+                "repeat_day_of_month",
+                vartype="int",
+                path="recurring/{repeat}/day-of-month",
+                condition={"repeat": "monthly"},
+            ),
+        )
+        params[-1].add_profile(
+            "8.0.0",
+            vartype="int",
+            path="type/{edl_type}/recurring/{repeat}/day-of-month",
+            condition={"edl_type": ["ip", "domain", "url"], "repeat": "monthly",},
         )
 
         self._params = tuple(params)

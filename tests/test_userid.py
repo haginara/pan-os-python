@@ -15,10 +15,11 @@ try:
     from unittest import mock
 except ImportError:
     import mock
+import sys
 import unittest
 
-import pandevice.firewall
-import pandevice.panorama
+import panos.firewall
+import panos.panorama
 
 
 class TestUserId(unittest.TestCase):
@@ -30,15 +31,27 @@ class TestUserId(unittest.TestCase):
     """
 
     def test_login(self):
-        expected = (
-            b"<uid-message><version>1.0</version>"
-            b"<type>update</type><payload><login>"
-            b'<entry ip="10.1.1.1" name="example.com\username" timeout="10" />'
-            b"</login></payload></uid-message>"
-        )
+        # Must set up different expectations for python 3.8 and higher
+        # Per documentation: "Changed in version 3.8: The tostring()
+        #   function now preserves the attribute order specified..."
+        # https://docs.python.org/3/library/xml.etree.elementtree.html#xml.etree.ElementTree.tostring
+        if sys.version_info <= (3, 8):
+            expected = (
+                b"<uid-message><version>1.0</version>"
+                b"<type>update</type><payload><login>"
+                b'<entry ip="10.1.1.1" name="example.com\\username" timeout="10" />'
+                b"</login></payload></uid-message>"
+            )
+        else:
+            expected = (
+                b"<uid-message><version>1.0</version>"
+                b"<type>update</type><payload><login>"
+                b'<entry name="example.com\\username" ip="10.1.1.1" timeout="10" />'
+                b"</login></payload></uid-message>"
+            )
         vsys = "vsys3"
 
-        fw = pandevice.firewall.Firewall(
+        fw = panos.firewall.Firewall(
             "fw1", "user", "passwd", "authkey", serial="Serial", vsys=vsys
         )
         fw.xapi
@@ -47,6 +60,24 @@ class TestUserId(unittest.TestCase):
         fw.userid.login(r"example.com\username", "10.1.1.1", timeout=10)
 
         fw._xapi_private.user_id.assert_called_once_with(cmd=expected, vsys=vsys)
+
+    def test_batch_tag_user(self):
+        fw = panos.firewall.Firewall(
+            "fw1", "user", "passwd", "authkey", serial="Serial", vsys="vsys1"
+        )
+        fw.xapi
+        fw.userid.batch_start()
+        fw.userid.tag_user("user1", ["tag1",])
+        fw.userid.tag_user("user2", ["tag1",])
+
+    def test_batch_untag_user(self):
+        fw = panos.firewall.Firewall(
+            "fw1", "user", "passwd", "authkey", serial="Serial", vsys="vsys2"
+        )
+        fw.xapi
+        fw.userid.batch_start()
+        fw.userid.untag_user("user1", ["tag1",])
+        fw.userid.untag_user("user2", ["tag1",])
 
 
 if __name__ == "__main__":
